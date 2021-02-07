@@ -1,4 +1,4 @@
-module spotifyapp.com
+module spotify
 
 go 1.15
 
