@@ -3,14 +3,18 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type AccessData struct {
@@ -236,10 +240,10 @@ func NewAPI(baseURL string, secret string, clientID string, refresh string) API 
 }
 
 func main() {
-	// err := godotenv.Load()
-	// if err != nil {
-	// 	log.Fatal("Error loading .env file")
-	// }
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	// scopes := []string{"user-read-playback-state", "user-read-currently-playing", "user-read-recently-played", "user-top-read"}
 	api := NewAPI("https://accounts.spotify.com/", os.Getenv("secret"), os.Getenv("clientID"), os.Getenv("refresh"))
 	// url := fmt.Sprintf("https://accounts.spotify.com/authorize?response_type=code&redirect_uri=http://localhost&client_id=%s", api.Creds.ID)
@@ -247,15 +251,21 @@ func main() {
 	// authUrl := fmt.Sprintf("%s&scope=%s", url, strings.Join(scopes, "%20"))
 	// fmt.Println(authUrl)
 
-	// err = api.Authorize("AQAhhpJW-mndn1NwJp4mbn1i9ehcy2rRRyoEAxDlHxmoyGenjCe8X4NYF9_o_CUkdVHFXGzvx2yaJ4Q8DuMexhCs1IIvAbsAv-ng3fbb6XzBkwDSyWZayhqSpSOKBkd5lvGVAzJqWpWGQbL8j_xzGvKJf89Pdrqtazez3i6DaIRnbscue4LY3hMcmJw5ecXNrbXuDbzKHCPt2LbNhaEJMm0Xi7HLPzMWXyKX-BO0l9Bqz4loRWCHG0U4GDSp6YX63PchyP8YmQvuHPNGUx4buYEQbsPg")
+	// err = api.Authorize("AQADBR9Yq7P6Mhb5V9cnKYKH3xWETG-Dpi8tkC371CsUK7C_3ZR--gejX85u2jhy5g9totBT6mw9SpBxjrDQQWVKRZ_x9npyExsWtprKb4Nv55BEY6jmkT6SRcob6ryJEBM2g_9iXaALUzGtFMAKwo8xRUJ4CmjYxXGnux93N5HKqL_CcKRaTAqg-KkTTpPWhRRnEPqKrZwKIHtm4RuBUlhe5qJKy60dGYNd6WFJ8CT5-kEPSmIGbVZASX-Fe6yw4qdi7D9QC08fpabpTifd97O0EYZ0")
 	// if err != nil {
+	// 	fmt.Println(err)
 	// 	panic(err)
 	// }
-	err := api.Refresh()
+	fmt.Println("rfesrer")
+	fmt.Println(os.Getenv("refresh"))
+	err = api.Refresh()
 	if err != nil {
 		panic(err)
 	}
 
+	fmt.Println("rfesrer")
+	fmt.Println(api.Tokens.Refresh)
+	fmt.Println("rfesrer")
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -286,50 +296,50 @@ func main() {
 		file.Close()
 	}
 
-	for _, period := range times {
-		fmt.Println(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period))
-		artists, err := api.GetTopTracks(period + "_term")
-		if err != nil {
-			panic(err)
-		}
-		fileName := fmt.Sprintf("%s.json", genNiceTime())
-		filePath := path.Join(wd, "json", "tracks", period, fileName)
+	// for _, period := range times {
+	// 	fmt.Println(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period))
+	// 	artists, err := api.GetTopTracks(period + "_term")
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	fileName := fmt.Sprintf("%s.json", genNiceTime())
+	// 	filePath := path.Join(wd, "json", "tracks", period, fileName)
 
-		file, err := os.Create(filePath)
-		if err != nil {
-			panic(err)
-		}
+	// 	file, err := os.Create(filePath)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
 
-		marshaledBody, err := json.Marshal(artists)
-		if err != nil {
-			panic(err)
-		}
+	// 	marshaledBody, err := json.Marshal(artists)
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
 
-		file.Write(marshaledBody)
-		file.Close()
-	}
+	// 	file.Write(marshaledBody)
+	// 	file.Close()
+	// }
 
-	fmt.Println("Processing recently played endpoint")
-	recentlyPlayed, err := api.GetRecentlyPlayed()
-	if err != nil {
-		panic(err)
-	}
+	// fmt.Println("Processing recently played endpoint")
+	// recentlyPlayed, err := api.GetRecentlyPlayed()
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	fileName := fmt.Sprintf("%s.json", genNiceTime())
-	filePath := path.Join(wd, "json", "recent", fileName)
+	// fileName := fmt.Sprintf("%s.json", genNiceTime())
+	// filePath := path.Join(wd, "json", "recent", fileName)
 
-	file, err := os.Create(filePath)
-	if err != nil {
-		panic(err)
-	}
+	// file, err := os.Create(filePath)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	marshaledBody, err := json.Marshal(recentlyPlayed)
-	if err != nil {
-		panic(err)
-	}
+	// marshaledBody, err := json.Marshal(recentlyPlayed)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	file.Write(marshaledBody)
-	file.Close()
+	// file.Write(marshaledBody)
+	// file.Close()
 }
 
 func genNiceTime() string {
@@ -358,6 +368,11 @@ func (api *API) GetRecentlyPlayed() (RecentlyPlayedResponse, error) {
 	bytes, err := ioutil.ReadAll(body.Body)
 	if err != nil {
 		return RecentlyPlayedResponse{}, err
+	}
+
+	if body.StatusCode != 200 {
+		fmt.Println(bytes)
+		return RecentlyPlayedResponse{}, errors.New("Status code not 200")
 	}
 
 	recentlyPlayedResp := RecentlyPlayedResponse{}
@@ -390,6 +405,11 @@ func (api *API) GetTopArtists(period string) (TopArtistsResponse, error) {
 		return TopArtistsResponse{}, err
 	}
 
+	if body.StatusCode != 200 {
+		fmt.Println(bytes)
+		return TopArtistsResponse{}, errors.New("Status code not 200")
+	}
+
 	topPlayedResp := TopArtistsResponse{}
 	err = json.Unmarshal(bytes, &topPlayedResp)
 	if err != nil {
@@ -419,6 +439,11 @@ func (api *API) GetTopTracks(period string) (TopTracksResponse, error) {
 		return TopTracksResponse{}, err
 	}
 
+	if body.StatusCode != 200 {
+		fmt.Println(bytes)
+		return TopTracksResponse{}, errors.New("Status code not 200")
+	}
+
 	topPlayedResp := TopTracksResponse{}
 	err = json.Unmarshal(bytes, &topPlayedResp)
 	if err != nil {
@@ -438,7 +463,6 @@ func (api *API) Authorize(code string) error {
 	req.Header.Set("Authorization", BasicAuth(api.Creds.ID, api.Creds.Secret))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	fmt.Print(req.Header.Get("Authorization"))
 	if err != nil {
 		return err
 	}
@@ -447,11 +471,16 @@ func (api *API) Authorize(code string) error {
 	if err != nil {
 		return err
 	}
-	defer body.Body.Close()
 
+	defer body.Body.Close()
 	bytes, err := ioutil.ReadAll(body.Body)
 	if err != nil {
 		return err
+	}
+
+	if body.StatusCode != 200 {
+		fmt.Println(string(bytes))
+		return errors.New("Status code not 200")
 	}
 
 	authResp := AuthResponse{}
@@ -489,6 +518,11 @@ func (api *API) Refresh() error {
 	bytes, err := ioutil.ReadAll(body.Body)
 	if err != nil {
 		return err
+	}
+
+	if body.StatusCode != 200 {
+		fmt.Println(bytes)
+		return errors.New("Status code not 200")
 	}
 
 	refreshResp := RefreshResponse{}
