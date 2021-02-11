@@ -296,50 +296,50 @@ func main() {
 		file.Close()
 	}
 
-	// for _, period := range times {
-	// 	fmt.Println(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period))
-	// 	artists, err := api.GetTopTracks(period + "_term")
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// 	fileName := fmt.Sprintf("%s.json", genNiceTime())
-	// 	filePath := path.Join(wd, "json", "tracks", period, fileName)
+	for _, period := range times {
+		fmt.Println(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period))
+		artists, err := api.GetTopTracks(period + "_term")
+		if err != nil {
+			panic(err)
+		}
+		fileName := fmt.Sprintf("%s.json", genNiceTime())
+		filePath := path.Join(wd, "json", "tracks", period, fileName)
 
-	// 	file, err := os.Create(filePath)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
+		file, err := os.Create(filePath)
+		if err != nil {
+			panic(err)
+		}
 
-	// 	marshaledBody, err := json.Marshal(artists)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
+		marshaledBody, err := json.Marshal(artists)
+		if err != nil {
+			panic(err)
+		}
 
-	// 	file.Write(marshaledBody)
-	// 	file.Close()
-	// }
+		file.Write(marshaledBody)
+		file.Close()
+	}
 
-	// fmt.Println("Processing recently played endpoint")
-	// recentlyPlayed, err := api.GetRecentlyPlayed()
-	// if err != nil {
-	// 	panic(err)
-	// }
+	fmt.Println("Processing recently played endpoint")
+	recentlyPlayed, err := api.GetRecentlyPlayed()
+	if err != nil {
+		panic(err)
+	}
 
-	// fileName := fmt.Sprintf("%s.json", genNiceTime())
-	// filePath := path.Join(wd, "json", "recent", fileName)
+	fileName := fmt.Sprintf("%s.json", genNiceTime())
+	filePath := path.Join(wd, "json", "recent", fileName)
 
-	// file, err := os.Create(filePath)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	file, err := os.Create(filePath)
+	if err != nil {
+		panic(err)
+	}
 
-	// marshaledBody, err := json.Marshal(recentlyPlayed)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	marshaledBody, err := json.Marshal(recentlyPlayed)
+	if err != nil {
+		panic(err)
+	}
 
-	// file.Write(marshaledBody)
-	// file.Close()
+	file.Write(marshaledBody)
+	file.Close()
 }
 
 func genNiceTime() string {
