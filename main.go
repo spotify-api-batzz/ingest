@@ -256,16 +256,11 @@ func main() {
 	// 	fmt.Println(err)
 	// 	panic(err)
 	// }
-	fmt.Println("rfesrer")
-	fmt.Println(os.Getenv("refresh"))
 	err = api.Refresh()
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Println("rfesrer")
-	fmt.Println(api.Tokens.Refresh)
-	fmt.Println("rfesrer")
 	wd, err := os.Getwd()
 	if err != nil {
 		panic(err)
