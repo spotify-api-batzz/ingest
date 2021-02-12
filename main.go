@@ -348,7 +348,9 @@ func BasicAuth(clientID string, clientSecret string) string {
 }
 
 func (api *API) GetRecentlyPlayed() (RecentlyPlayedResponse, error) {
-	req, err := http.NewRequest("GET", "https://api.spotify.com/v1/me/player/recently-played", nil)
+	data := url.Values{}
+	data.Set("limit", "50")
+	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/me/player/recently-played?%s", data.Encode()), nil)
 	if err != nil {
 		return RecentlyPlayedResponse{}, err
 	}
@@ -382,6 +384,7 @@ func (api *API) GetRecentlyPlayed() (RecentlyPlayedResponse, error) {
 func (api *API) GetTopArtists(period string) (TopArtistsResponse, error) {
 	data := url.Values{}
 	data.Set("time_range", period)
+	data.Set("limit", "50")
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/me/top/artists?%s", data.Encode()), nil)
 
 	if err != nil {
@@ -417,6 +420,7 @@ func (api *API) GetTopArtists(period string) (TopArtistsResponse, error) {
 func (api *API) GetTopTracks(period string) (TopTracksResponse, error) {
 	data := url.Values{}
 	data.Set("time_range", period)
+	data.Set("limit", "50")
 	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/me/top/tracks?%s", data.Encode()), nil)
 	if err != nil {
 		return TopTracksResponse{}, err
