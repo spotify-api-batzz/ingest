@@ -7,15 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"spotify/models"
 	"strings"
 	"time"
-
-	"github.com/joho/godotenv"
 )
 
 type AccessData struct {
@@ -91,10 +88,10 @@ func newSpotify(database *Database, api *API) spotify {
 }
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// }
 	// scopes := []string{"user-read-playback-state", "user-read-currently-playing", "user-read-recently-played", "user-top-read"}
 	api := NewAPI("https://accounts.spotify.com/", os.Getenv("secret"), os.Getenv("clientID"), os.Getenv("refresh"))
 	// url := fmt.Sprintf("https://accounts.spotify.com/authorize?response_type=code&redirect_uri=http://localhost&client_id=%s", api.Creds.ID)
@@ -113,7 +110,7 @@ func main() {
 
 	spotify := newSpotify(&database, &api)
 
-	err = api.Refresh()
+	err := api.Refresh()
 	if err != nil {
 		panic(err)
 	}
