@@ -99,7 +99,7 @@ func (d *Database) CreateArtist(artistValues []interface{}) error {
 }
 
 func (d *Database) CreateTopArtist(topArtistValues []interface{}) error {
-	sql := fmt.Sprintf(`INSERT INTO top_artists (id, artist_id, "order", time_period, created_at, updated_at) VALUES %s `, PrepareBatchValuesPG(6, len(topArtistValues)/6))
+	sql := fmt.Sprintf(`INSERT INTO top_artists (id, artist_id, "order", user_id, time_period, created_at, updated_at) VALUES %s `, PrepareBatchValuesPG(7, len(topArtistValues)/7))
 	_, err := d.DB.Exec(sql, topArtistValues...)
 	if err != nil {
 		return err

@@ -185,7 +185,7 @@ func (spotify *spotify) Artists() {
 	for _, period := range spotify.Times {
 		topArtistResp := spotify.TopArtists[period]
 		for order, artist := range topArtistResp.Items {
-			newTopArtist := models.NewTopArtist(artist.Name, spotify.ExistingArtists[artist.ID].ID.String(), order+1, period)
+			newTopArtist := models.NewTopArtist(artist.Name, spotify.ExistingArtists[artist.ID].ID.String(), order+1, period, os.Getenv("USER_ID"))
 			topArtistValues = append(topArtistValues, newTopArtist.ToSlice()...)
 		}
 	}
@@ -363,7 +363,7 @@ func (spotify *spotify) Tracks() {
 	for _, period := range spotify.Times {
 		topSongResp := spotify.TopTracks[period]
 		for order, artist := range topSongResp.Items {
-			newTopSong := models.NewTopSong(artist.Name, spotify.ExistingSongs[artist.ID].ID.String(), order+1, period)
+			newTopSong := models.NewTopSong(os.Getenv("USER_ID"), spotify.ExistingSongs[artist.ID].ID.String(), order+1, period)
 			topSongValues = append(topSongValues, newTopSong.ToSlice()...)
 		}
 	}
