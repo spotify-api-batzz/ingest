@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -10,7 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
+	"spotify/models"
 	"strings"
 	"time"
 
@@ -43,188 +44,6 @@ type RefreshResponse struct {
 	Access string `json:"access_token"`
 }
 
-type RecentlyPlayedResponse struct {
-	Items []struct {
-		Track struct {
-			Album struct {
-				AlbumType string `json:"album_type"`
-				Artists   []struct {
-					ExternalUrls struct {
-						Spotify string `json:"spotify"`
-					} `json:"external_urls"`
-					Href string `json:"href"`
-					ID   string `json:"id"`
-					Name string `json:"name"`
-					Type string `json:"type"`
-					URI  string `json:"uri"`
-				} `json:"artists"`
-				AvailableMarkets []string `json:"available_markets"`
-				ExternalUrls     struct {
-					Spotify string `json:"spotify"`
-				} `json:"external_urls"`
-				Href   string `json:"href"`
-				ID     string `json:"id"`
-				Images []struct {
-					Height int    `json:"height"`
-					URL    string `json:"url"`
-					Width  int    `json:"width"`
-				} `json:"images"`
-				Name                 string `json:"name"`
-				ReleaseDate          string `json:"release_date"`
-				ReleaseDatePrecision string `json:"release_date_precision"`
-				TotalTracks          int    `json:"total_tracks"`
-				Type                 string `json:"type"`
-				URI                  string `json:"uri"`
-			} `json:"album"`
-			Artists []struct {
-				ExternalUrls struct {
-					Spotify string `json:"spotify"`
-				} `json:"external_urls"`
-				Href string `json:"href"`
-				ID   string `json:"id"`
-				Name string `json:"name"`
-				Type string `json:"type"`
-				URI  string `json:"uri"`
-			} `json:"artists"`
-			AvailableMarkets []string `json:"available_markets"`
-			DiscNumber       int      `json:"disc_number"`
-			DurationMs       int      `json:"duration_ms"`
-			Explicit         bool     `json:"explicit"`
-			ExternalIds      struct {
-				Isrc string `json:"isrc"`
-			} `json:"external_ids"`
-			ExternalUrls struct {
-				Spotify string `json:"spotify"`
-			} `json:"external_urls"`
-			Href        string `json:"href"`
-			ID          string `json:"id"`
-			IsLocal     bool   `json:"is_local"`
-			Name        string `json:"name"`
-			Popularity  int    `json:"popularity"`
-			PreviewURL  string `json:"preview_url"`
-			TrackNumber int    `json:"track_number"`
-			Type        string `json:"type"`
-			URI         string `json:"uri"`
-		} `json:"track"`
-		PlayedAt time.Time `json:"played_at"`
-		Context  struct {
-			ExternalUrls struct {
-				Spotify string `json:"spotify"`
-			} `json:"external_urls"`
-			Href string `json:"href"`
-			Type string `json:"type"`
-			URI  string `json:"uri"`
-		} `json:"context"`
-	} `json:"items"`
-	Next    string `json:"next"`
-	Cursors struct {
-		After  string `json:"after"`
-		Before string `json:"before"`
-	} `json:"cursors"`
-	Limit int    `json:"limit"`
-	Href  string `json:"href"`
-}
-
-type TopArtistsResponse struct {
-	Items []struct {
-		ExternalUrls struct {
-			Spotify string `json:"spotify"`
-		} `json:"external_urls"`
-		Followers struct {
-			Href  interface{} `json:"href"`
-			Total int         `json:"total"`
-		} `json:"followers"`
-		Genres []string `json:"genres"`
-		Href   string   `json:"href"`
-		ID     string   `json:"id"`
-		Images []struct {
-			Height int    `json:"height"`
-			URL    string `json:"url"`
-			Width  int    `json:"width"`
-		} `json:"images"`
-		Name       string `json:"name"`
-		Popularity int    `json:"popularity"`
-		Type       string `json:"type"`
-		URI        string `json:"uri"`
-	} `json:"items"`
-	Total    int         `json:"total"`
-	Limit    int         `json:"limit"`
-	Offset   int         `json:"offset"`
-	Href     string      `json:"href"`
-	Previous interface{} `json:"previous"`
-	Next     string      `json:"next"`
-}
-
-type TopTracksResponse struct {
-	Items []struct {
-		Album struct {
-			AlbumType string `json:"album_type"`
-			Artists   []struct {
-				ExternalUrls struct {
-					Spotify string `json:"spotify"`
-				} `json:"external_urls"`
-				Href string `json:"href"`
-				ID   string `json:"id"`
-				Name string `json:"name"`
-				Type string `json:"type"`
-				URI  string `json:"uri"`
-			} `json:"artists"`
-			AvailableMarkets []string `json:"available_markets"`
-			ExternalUrls     struct {
-				Spotify string `json:"spotify"`
-			} `json:"external_urls"`
-			Href   string `json:"href"`
-			ID     string `json:"id"`
-			Images []struct {
-				Height int    `json:"height"`
-				URL    string `json:"url"`
-				Width  int    `json:"width"`
-			} `json:"images"`
-			Name                 string `json:"name"`
-			ReleaseDate          string `json:"release_date"`
-			ReleaseDatePrecision string `json:"release_date_precision"`
-			TotalTracks          int    `json:"total_tracks"`
-			Type                 string `json:"type"`
-			URI                  string `json:"uri"`
-		} `json:"album"`
-		Artists []struct {
-			ExternalUrls struct {
-				Spotify string `json:"spotify"`
-			} `json:"external_urls"`
-			Href string `json:"href"`
-			ID   string `json:"id"`
-			Name string `json:"name"`
-			Type string `json:"type"`
-			URI  string `json:"uri"`
-		} `json:"artists"`
-		AvailableMarkets []string `json:"available_markets"`
-		DiscNumber       int      `json:"disc_number"`
-		DurationMs       int      `json:"duration_ms"`
-		Explicit         bool     `json:"explicit"`
-		ExternalIds      struct {
-			Isrc string `json:"isrc"`
-		} `json:"external_ids"`
-		ExternalUrls struct {
-			Spotify string `json:"spotify"`
-		} `json:"external_urls"`
-		Href        string `json:"href"`
-		ID          string `json:"id"`
-		IsLocal     bool   `json:"is_local"`
-		Name        string `json:"name"`
-		Popularity  int    `json:"popularity"`
-		PreviewURL  string `json:"preview_url"`
-		TrackNumber int    `json:"track_number"`
-		Type        string `json:"type"`
-		URI         string `json:"uri"`
-	} `json:"items"`
-	Total    int         `json:"total"`
-	Limit    int         `json:"limit"`
-	Offset   int         `json:"offset"`
-	Href     string      `json:"href"`
-	Previous interface{} `json:"previous"`
-	Next     string      `json:"next"`
-}
-
 func NewAPI(baseURL string, secret string, clientID string, refresh string) API {
 	return API{
 		BaseURL: baseURL,
@@ -236,6 +55,34 @@ func NewAPI(baseURL string, secret string, clientID string, refresh string) API 
 		Tokens: AccessData{
 			Refresh: refresh,
 		},
+	}
+}
+
+type spotify struct {
+	Database *Database
+	API      *API
+
+	ExistingArtists map[string]models.Artist
+	ExistingSongs   map[string]models.Song
+
+	TopArtists map[string]TopArtistsResponse
+	TopTracks  map[string]TopTracksResponse
+
+	Times []string
+}
+
+func newSpotify(database *Database, api *API) spotify {
+	return spotify{
+		Database: database,
+		API:      api,
+
+		ExistingArtists: make(map[string]models.Artist),
+		ExistingSongs:   make(map[string]models.Song),
+
+		TopArtists: make(map[string]TopArtistsResponse),
+		TopTracks:  make(map[string]TopTracksResponse),
+
+		Times: []string{"short", "medium", "long"},
 	}
 }
 
@@ -256,91 +103,258 @@ func main() {
 	// 	fmt.Println(err)
 	// 	panic(err)
 	// }
+
+	database := Database{}
+	database.Connect()
+
+	spotify := newSpotify(&database, &api)
+
 	err = api.Refresh()
 	if err != nil {
 		panic(err)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		panic(err)
-	}
+	spotify.Artists()
+	spotify.Tracks()
+	spotify.Recents()
+	// songs := map[string]models.Song{}
+	// albums := map[string]models.Album{}
 
-	times := []string{"short", "medium", "long"}
+}
+func (spotify *spotify) Artists() {
+	artistsToQuery := []interface{}{}
+	artistList := []Artist{}
+	// songsToQuery := []interface{}{}
 
-	for _, period := range times {
+	for _, period := range spotify.Times {
 		fmt.Println(fmt.Sprintf("Processing %s_term time range for artists endpoint", period))
-		artists, err := api.GetTopArtists(period + "_term")
-		if err != nil {
-			panic(err)
-		}
-		fileName := fmt.Sprintf("%s.json", genNiceTime())
-		filePath := path.Join(wd, "json", "artists", period, fileName)
-
-		file, err := os.Create(filePath)
+		artists, err := spotify.API.GetTopArtists(period + "_term")
 		if err != nil {
 			panic(err)
 		}
 
-		marshaledBody, err := json.Marshal(artists)
-		if err != nil {
-			panic(err)
+		for _, artist := range artists.Items {
+			if _, ok := spotify.ExistingArtists[artist.ID]; ok {
+				continue
+			}
+			artistsToQuery = append(artistsToQuery, artist.ID)
+			artistList = append(artistList, artist)
 		}
-
-		file.Write(marshaledBody)
-		file.Close()
+		spotify.TopArtists[period] = artists
 	}
 
-	for _, period := range times {
-		fmt.Println(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period))
-		artists, err := api.GetTopTracks(period + "_term")
-		if err != nil {
-			panic(err)
-		}
-		fileName := fmt.Sprintf("%s.json", genNiceTime())
-		filePath := path.Join(wd, "json", "tracks", period, fileName)
-
-		file, err := os.Create(filePath)
-		if err != nil {
-			panic(err)
-		}
-
-		marshaledBody, err := json.Marshal(artists)
-		if err != nil {
-			panic(err)
-		}
-
-		file.Write(marshaledBody)
-		file.Close()
+	artists, err := spotify.Database.FetchArtistsBySpotifyID(artistsToQuery)
+	if err != nil && err != sql.ErrNoRows {
+		panic(err)
 	}
 
+	artistsToInsert := []interface{}{}
+
+	for _, artist := range artistList {
+		validArtist := false
+		for _, artist := range artists {
+			for _, artistID := range artistsToQuery {
+				if artist.SpotifyID == artistID {
+					spotify.ExistingArtists[artist.SpotifyID] = artist
+					validArtist = true
+				}
+			}
+		}
+		if !validArtist {
+			newArtist := models.NewArtist(artist.Name, artist.ID)
+			spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
+			artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
+		}
+	}
+
+	err = spotify.createArtists(artistsToInsert)
+	if err != nil {
+		panic(err)
+	}
+
+	topArtistValues := []interface{}{}
+
+	for _, period := range spotify.Times {
+		topArtistResp := spotify.TopArtists[period]
+		for order, artist := range topArtistResp.Items {
+			newTopArtist := models.NewTopArtist(artist.Name, spotify.ExistingArtists[artist.ID].ID.String(), order+1, period)
+			topArtistValues = append(topArtistValues, newTopArtist.ToSlice()...)
+		}
+	}
+
+	err = spotify.createTopArtists(topArtistValues)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (spotify *spotify) Recents() {
 	fmt.Println("Processing recently played endpoint")
-	recentlyPlayed, err := api.GetRecentlyPlayed()
+	recentlyPlayed, err := spotify.API.GetRecentlyPlayed()
+	if err != nil {
+		panic(err)
+	}
+	songsToCreate := []interface{}{}
+	for _, recent := range recentlyPlayed.Items {
+		if _, ok := spotify.ExistingSongs[recent.Track.ID]; !ok {
+			newSong := models.NewSong(recent.Track.Name, recent.Track.ID, recent.Track.Album.ID)
+			songsToCreate = append(songsToCreate, newSong.ToSlice()...)
+			spotify.ExistingSongs[newSong.SpotifyID] = newSong
+		}
+	}
+
+	err = spotify.createSongs(songsToCreate)
 	if err != nil {
 		panic(err)
 	}
 
-	fileName := fmt.Sprintf("%s.json", genNiceTime())
-	filePath := path.Join(wd, "json", "recent", fileName)
+	recentlyToCreate := []interface{}{}
+	for _, recent := range recentlyPlayed.Items {
+		existingSong := spotify.ExistingSongs[recent.Track.ID]
+		newRecentlyListened := models.NewRecentListen(existingSong.ID.String(), "1232", recent.PlayedAt)
+		recentlyToCreate = append(recentlyToCreate, newRecentlyListened.ToSlice()...)
+	}
 
-	file, err := os.Create(filePath)
+	err = spotify.createRecentlyListened(recentlyToCreate)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (spotify *spotify) Tracks() {
+	songsToQuery := []interface{}{}
+	songList := []Song{}
+
+	for _, period := range spotify.Times {
+		fmt.Println(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period))
+		tracks, err := spotify.API.GetTopTracks(period + "_term")
+		if err != nil {
+			panic(err)
+		}
+		for _, track := range tracks.Items {
+			if _, ok := spotify.ExistingSongs[track.ID]; ok {
+				continue
+			}
+			songsToQuery = append(songsToQuery, track.ID)
+			songList = append(songList, track)
+		}
+		spotify.TopTracks[period] = tracks
+	}
+
+	songs, err := spotify.Database.FetchSongsBySpotifyID(songsToQuery)
+	if err != nil && err != sql.ErrNoRows {
+		panic(err)
+	}
+
+	songsToInsert := []interface{}{}
+
+	for _, song := range songList {
+		validSong := false
+		for _, song := range songs {
+			for _, artistID := range songsToQuery {
+				if song.SpotifyID == artistID {
+					spotify.ExistingSongs[song.SpotifyID] = song
+					validSong = true
+				}
+			}
+		}
+		if !validSong {
+			newSong := models.NewSong(song.Name, song.ID, "123")
+			spotify.ExistingSongs[newSong.SpotifyID] = newSong
+			songsToInsert = append(songsToInsert, newSong.ToSlice()...)
+		}
+	}
+
+	err = spotify.createSongs(songsToInsert)
 	if err != nil {
 		panic(err)
 	}
 
-	marshaledBody, err := json.Marshal(recentlyPlayed)
+	topSongValues := []interface{}{}
+
+	for _, period := range spotify.Times {
+		topSongResp := spotify.TopTracks[period]
+		for order, artist := range topSongResp.Items {
+			newTopSong := models.NewTopSong(artist.Name, spotify.ExistingSongs[artist.ID].ID.String(), order+1, period)
+			topSongValues = append(topSongValues, newTopSong.ToSlice()...)
+		}
+	}
+
+	err = spotify.createTopSongs(topSongValues)
 	if err != nil {
 		panic(err)
 	}
 
-	file.Write(marshaledBody)
-	file.Close()
+}
+
+func (spotify *spotify) createRecentlyListened(recentlyListenedValues []interface{}) error {
+	if len(recentlyListenedValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateRecentlyListened(recentlyListenedValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (spotify *spotify) createArtists(artistValues []interface{}) error {
+	if len(artistValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateArtist(artistValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (spotify *spotify) createTopArtists(topArtistValues []interface{}) error {
+	if len(topArtistValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateTopArtist(topArtistValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (spotify *spotify) createSongs(songValues []interface{}) error {
+	if len(songValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateSong(songValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (spotify *spotify) createTopSongs(topSongValues []interface{}) error {
+	if len(topSongValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateTopSong(topSongValues)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func genNiceTime() string {
 	timeFormat := "Mon 2 Jan 2006 15-04-05"
 	time := time.Now()
 	return time.Format(timeFormat)
+}
+
+func fetchOrCreateArtist(database Database, artist Artist) models.Artist {
+	dbArtist, err := database.FetchArtistBySpotifyID(artist.ID)
+	if err == sql.ErrNoRows {
+		dbArtist = models.NewArtist(artist.Name, artist.ID)
+		database.CreateArtist(dbArtist.ToSlice())
+	}
+	return dbArtist
 }
 
 func BasicAuth(clientID string, clientSecret string) string {
