@@ -64,9 +64,12 @@ type spotify struct {
 
 	ExistingArtists map[string]models.Artist
 	ExistingSongs   map[string]models.Song
+	ExistingAlbums  map[string]models.Album
 
 	TopArtists map[string]TopArtistsResponse
 	TopTracks  map[string]TopTracksResponse
+
+	thumbnailsToInsert []interface{}
 
 	Times []string
 }
@@ -78,6 +81,7 @@ func newSpotify(database *Database, api *API) spotify {
 
 		ExistingArtists: make(map[string]models.Artist),
 		ExistingSongs:   make(map[string]models.Song),
+		ExistingAlbums:  make(map[string]models.Album),
 
 		TopArtists: make(map[string]TopArtistsResponse),
 		TopTracks:  make(map[string]TopTracksResponse),
@@ -114,17 +118,19 @@ func main() {
 		panic(err)
 	}
 
-	spotify.Artists()
 	spotify.Tracks()
+	spotify.Artists()
 	spotify.Recents()
-	// songs := map[string]models.Song{}
-	// albums := map[string]models.Album{}
 
+	err = spotify.Database.CreateThumbnail(spotify.thumbnailsToInsert)
+	if err != nil {
+		panic(err)
+	}
 }
+
 func (spotify *spotify) Artists() {
 	artistsToQuery := []interface{}{}
 	artistList := []Artist{}
-	// songsToQuery := []interface{}{}
 
 	for _, period := range spotify.Times {
 		fmt.Println(fmt.Sprintf("Processing %s_term time range for artists endpoint", period))
@@ -162,6 +168,8 @@ func (spotify *spotify) Artists() {
 		}
 		if !validArtist {
 			newArtist := models.NewArtist(artist.Name, artist.ID)
+			newThumbnail := models.NewThumbnail("artist", newArtist.ID.String(), artist.Images[0].URL)
+			spotify.thumbnailsToInsert = append(spotify.thumbnailsToInsert, newThumbnail.ToSlice()...)
 			spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
 			artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
 		}
@@ -194,10 +202,37 @@ func (spotify *spotify) Recents() {
 	if err != nil {
 		panic(err)
 	}
+
+	artistsToFetch := []string{}
+
+	for _, song := range recentlyPlayed.Items {
+		if _, ok := spotify.ExistingArtists[song.Track.Artists[0].ID]; ok {
+			continue
+		}
+		artistsToFetch = append(artistsToFetch, song.Track.Artists[0].ID)
+	}
+
+	artists, err := spotify.API.GetArtists(artistsToFetch)
+	if err != nil {
+		panic(err)
+	}
+
+	artistsToInsert := []interface{}{}
+	for _, artist := range artists {
+		newArtist := models.NewArtist(artist.Name, artist.ID)
+		spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
+		artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
+	}
+
+	err = spotify.createArtists(artistsToInsert)
+	if err != nil {
+		panic(err)
+	}
+
 	songsToCreate := []interface{}{}
 	for _, recent := range recentlyPlayed.Items {
 		if _, ok := spotify.ExistingSongs[recent.Track.ID]; !ok {
-			newSong := models.NewSong(recent.Track.Name, recent.Track.ID, recent.Track.Album.ID)
+			newSong := models.NewSong(recent.Track.Name, recent.Track.ID, recent.Track.Album.ID, spotify.ExistingArtists[recent.Track.Artists[0].ID].ID.String())
 			songsToCreate = append(songsToCreate, newSong.ToSlice()...)
 			spotify.ExistingSongs[newSong.SpotifyID] = newSong
 		}
@@ -211,7 +246,7 @@ func (spotify *spotify) Recents() {
 	recentlyToCreate := []interface{}{}
 	for _, recent := range recentlyPlayed.Items {
 		existingSong := spotify.ExistingSongs[recent.Track.ID]
-		newRecentlyListened := models.NewRecentListen(existingSong.ID.String(), "1232", recent.PlayedAt)
+		newRecentlyListened := models.NewRecentListen(existingSong.ID.String(), os.Getenv("USER_ID"), recent.PlayedAt)
 		recentlyToCreate = append(recentlyToCreate, newRecentlyListened.ToSlice()...)
 	}
 
@@ -223,6 +258,7 @@ func (spotify *spotify) Recents() {
 
 func (spotify *spotify) Tracks() {
 	songsToQuery := []interface{}{}
+	albumsToQuery := []interface{}{}
 	songList := []Song{}
 
 	for _, period := range spotify.Times {
@@ -236,6 +272,7 @@ func (spotify *spotify) Tracks() {
 				continue
 			}
 			songsToQuery = append(songsToQuery, track.ID)
+			albumsToQuery = append(albumsToQuery, track.Album.ID)
 			songList = append(songList, track)
 		}
 		spotify.TopTracks[period] = tracks
@@ -246,7 +283,52 @@ func (spotify *spotify) Tracks() {
 		panic(err)
 	}
 
+	albums, err := spotify.Database.FetchAlbumsBySpotifyID(albumsToQuery)
+	if err != nil && err != sql.ErrNoRows {
+		panic(err)
+	}
 	songsToInsert := []interface{}{}
+	albumsToInsert := []interface{}{}
+	artistsToFetch := []string{}
+
+	for _, song := range songList {
+		if _, ok := spotify.ExistingArtists[song.Artists[0].ID]; ok {
+			continue
+		}
+		artistsToFetch = append(artistsToFetch, song.Artists[0].ID)
+	}
+
+	artists, err := spotify.API.GetArtists(artistsToFetch)
+	if err != nil {
+		panic(err)
+	}
+
+	artistsToInsert := []interface{}{}
+	for _, artist := range artists {
+		newArtist := models.NewArtist(artist.Name, artist.ID)
+		spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
+		artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
+	}
+
+	for _, song := range songList {
+		validAlbum := false
+		if _, ok := spotify.ExistingAlbums[song.Album.ID]; ok {
+			continue
+		}
+		for _, album := range albums {
+			if song.Album.ID == album.SpotifyID {
+				spotify.ExistingAlbums[album.SpotifyID] = album
+				validAlbum = true
+			}
+		}
+		if !validAlbum {
+			newAlbum := models.NewAlbum(song.Album.Name, spotify.ExistingArtists[song.Artists[0].ID].ID.String(), song.Album.ID)
+			spotify.ExistingAlbums[newAlbum.SpotifyID] = newAlbum
+			newThumbnail := models.NewThumbnail("album", newAlbum.ID.String(), song.Album.Images[0].URL)
+			spotify.thumbnailsToInsert = append(spotify.thumbnailsToInsert, newThumbnail.ToSlice()...)
+			albumsToInsert = append(albumsToInsert, newAlbum.ToSlice()...)
+		}
+	}
 
 	for _, song := range songList {
 		validSong := false
@@ -259,13 +341,19 @@ func (spotify *spotify) Tracks() {
 			}
 		}
 		if !validSong {
-			newSong := models.NewSong(song.Name, song.ID, "123")
+			newSong := models.NewSong(song.Name, song.ID, spotify.ExistingAlbums[song.Album.ID].ID.String(), spotify.ExistingArtists[song.Artists[0].ID].ID.String())
+
 			spotify.ExistingSongs[newSong.SpotifyID] = newSong
 			songsToInsert = append(songsToInsert, newSong.ToSlice()...)
 		}
 	}
 
 	err = spotify.createSongs(songsToInsert)
+	if err != nil {
+		panic(err)
+	}
+
+	err = spotify.createAlbums(albumsToInsert)
 	if err != nil {
 		panic(err)
 	}
@@ -331,6 +419,28 @@ func (spotify *spotify) createSongs(songValues []interface{}) error {
 	return nil
 }
 
+func (spotify *spotify) createAlbums(albumValues []interface{}) error {
+	if len(albumValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateAlbum(albumValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (spotify *spotify) createThumbnails(thumbnailValues []interface{}) error {
+	if len(thumbnailValues) == 0 {
+		return nil
+	}
+	err := spotify.Database.CreateThumbnail(thumbnailValues)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (spotify *spotify) createTopSongs(topSongValues []interface{}) error {
 	if len(topSongValues) == 0 {
 		return nil
@@ -382,7 +492,6 @@ func (api *API) GetRecentlyPlayed() (RecentlyPlayedResponse, error) {
 	}
 
 	if body.StatusCode != 200 {
-		fmt.Println(bytes)
 		return RecentlyPlayedResponse{}, errors.New("Status code not 200")
 	}
 
@@ -418,7 +527,6 @@ func (api *API) GetTopArtists(period string) (TopArtistsResponse, error) {
 	}
 
 	if body.StatusCode != 200 {
-		fmt.Println(bytes)
 		return TopArtistsResponse{}, errors.New("Status code not 200")
 	}
 
@@ -453,7 +561,6 @@ func (api *API) GetTopTracks(period string) (TopTracksResponse, error) {
 	}
 
 	if body.StatusCode != 200 {
-		fmt.Println(bytes)
 		return TopTracksResponse{}, errors.New("Status code not 200")
 	}
 
@@ -464,6 +571,46 @@ func (api *API) GetTopTracks(period string) (TopTracksResponse, error) {
 	}
 
 	return topPlayedResp, nil
+}
+
+func (api *API) GetArtists(ids []string) ([]Artists, error) {
+	chunkedIDs := chunkSlice(ids, 50)
+	artistList := []Artists{}
+
+	for _, chunk := range chunkedIDs {
+		data := url.Values{}
+		data.Set("ids", strings.Join(chunk, ","))
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/artists?%s", data.Encode()), nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
+
+		body, err := api.Client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer body.Body.Close()
+
+		bytes, err := ioutil.ReadAll(body.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		if body.StatusCode != 200 {
+			return nil, errors.New("Status code not 200")
+		}
+
+		artistsResp := ArtistsResponse{}
+		err = json.Unmarshal(bytes, &artistsResp)
+		if err != nil {
+			return nil, err
+		}
+
+		artistList = append(artistList, artistsResp.Artists...)
+	}
+
+	return artistList, nil
 }
 
 func (api *API) Authorize(code string) error {
@@ -492,7 +639,6 @@ func (api *API) Authorize(code string) error {
 	}
 
 	if body.StatusCode != 200 {
-		fmt.Println(string(bytes))
 		return errors.New("Status code not 200")
 	}
 
@@ -534,7 +680,6 @@ func (api *API) Refresh() error {
 	}
 
 	if body.StatusCode != 200 {
-		fmt.Println(bytes)
 		return errors.New("Status code not 200")
 	}
 
@@ -548,12 +693,19 @@ func (api *API) Refresh() error {
 	return nil
 }
 
-// https://accounts.spotify.com/authorize?client_id=5fe01282e44241328a84e7c5cc169165&response_type=code&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&scope=user-read-private%20user-read-email&state=34fFs29kd09
+func chunkSlice(toChunk []string, size int) [][]string {
+	var divided [][]string
 
-// {
-//   "access_token": "BQBkz49PV7FjapOSXrWgrjglA9ARNial4Sim9dePiTqFqtPeKOWjkULi8UJdJxx2VXBsiRY5joFO29UB3DmU09u9-hApivJ73icQS0n2wVGMmqjTWFg0el_rF3KtLj0dO3nTcbZPHiLAqq8hSmP0",
-//   "token_type": "Bearer",
-//   "expires_in": 3600,
-//   "refresh_token": "AQAcB3qPL3cld0iLTiiYOFBvoGXVFGX6tijiaWH9pCfvqzVYKezvCsCbjn4kWydsbFp-Rq-JVw2yGRS8Pd_ApxTwn0SKi7pwzdhPrudsE_cKQnu3KrF_gdfIYJPjxWlSTnM",
-//   "scope": ""
-// }
+	// chunkSize := (len(logs) + numCPU - 1) / numCPU
+
+	for i := 0; i < len(toChunk); i += size {
+		end := i + size
+
+		if end > len(toChunk) {
+			end = len(toChunk)
+		}
+
+		divided = append(divided, toChunk[i:end])
+	}
+	return divided
+}

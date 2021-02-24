@@ -60,6 +60,16 @@ func (d *Database) FetchSongsBySpotifyID(spotifyIDs []interface{}) ([]models.Son
 	return songs, nil
 }
 
+func (d *Database) FetchAlbumsBySpotifyID(spotifyIDs []interface{}) ([]models.Album, error) {
+	albums := []models.Album{}
+	sql := fmt.Sprintf("SELECT * FROM albums WHERE spotify_id IN (%s)", PrepareBatchValuesPG(1, len(spotifyIDs)))
+	err := d.DB.Select(&albums, sql, spotifyIDs...)
+	if err != nil {
+		return nil, err
+	}
+	return albums, nil
+}
+
 func (d *Database) FetchArtistsBySpotifyID(spotifyIDs []interface{}) ([]models.Artist, error) {
 	artists := []models.Artist{}
 	sql := fmt.Sprintf("SELECT * FROM artists WHERE spotify_id IN (%s)", PrepareBatchValuesPG(1, len(spotifyIDs)))
@@ -80,9 +90,7 @@ func (d *Database) FetchArtistByID(id string) (models.Artist, error) {
 }
 
 func (d *Database) CreateArtist(artistValues []interface{}) error {
-	fmt.Println(artistValues...)
 	sql := fmt.Sprintf("INSERT INTO artists (id, name, spotify_id, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(5, len(artistValues)/5))
-	fmt.Println(sql)
 	_, err := d.DB.Exec(sql, artistValues...)
 	if err != nil {
 		return err
@@ -100,10 +108,36 @@ func (d *Database) CreateTopArtist(topArtistValues []interface{}) error {
 }
 
 func (d *Database) CreateSong(songValues []interface{}) error {
-	fmt.Println(songValues...)
-	sql := fmt.Sprintf("INSERT INTO songs (id, spotify_id, album_id, name, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(6, len(songValues)/6))
-	fmt.Println(sql)
+	sql := fmt.Sprintf("INSERT INTO songs (id, spotify_id, album_id, artist_id, name, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(7, len(songValues)/7))
 	_, err := d.DB.Exec(sql, songValues...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// slice := make([]interface{}, 6)
+// slice[0] = t.ID
+// slice[1] = t.Entity
+// slice[2] = t.EntityID
+// slice[3] = t.URL
+// slice[4] = time.Now().UTC().Format(time.RFC3339)
+// slice[5] = time.Now().UTC().Format(time.RFC3339)
+
+// return slice
+
+func (d *Database) CreateThumbnail(thumbnailValues []interface{}) error {
+	sql := fmt.Sprintf("INSERT INTO thumbnails (id, entity, entity_id, url, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(6, len(thumbnailValues)/6))
+	_, err := d.DB.Exec(sql, thumbnailValues...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Database) CreateAlbum(albumValues []interface{}) error {
+	sql := fmt.Sprintf("INSERT INTO albums (id, name, artist_id, spotify_id, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(6, len(albumValues)/6))
+	_, err := d.DB.Exec(sql, albumValues...)
 	if err != nil {
 		return err
 	}
