@@ -365,8 +365,12 @@ func (spotify *spotify) Tracks() {
 
 	for _, period := range spotify.Times {
 		topSongResp := spotify.TopTracks[period]
-		for order, artist := range topSongResp.Items {
-			newTopSong := models.NewTopSong(os.Getenv("USER_ID"), spotify.ExistingSongs[artist.ID].ID.String(), order+1, period)
+		for order, song := range topSongResp.Items {
+			songID := spotify.ExistingSongs[song.ID].ID.String()
+			if songID == "00000000-0000-0000-0000-000000000000" {
+				songID = song.ID
+			}
+			newTopSong := models.NewTopSong(os.Getenv("USER_ID"), songID, order+1, period)
 			topSongValues = append(topSongValues, newTopSong.ToSlice()...)
 		}
 	}
