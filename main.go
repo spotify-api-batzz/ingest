@@ -122,10 +122,13 @@ func main() {
 	spotify.Artists()
 	spotify.Recents()
 
-	err = spotify.Database.CreateThumbnail(spotify.thumbnailsToInsert)
-	if err != nil {
-		panic(err)
+	if len(spotify.thumbnailsToInsert) != 0 {
+		err = spotify.Database.CreateThumbnail(spotify.thumbnailsToInsert)
+		if err != nil {
+			panic(err)
+		}
 	}
+
 }
 
 func (spotify *spotify) Artists() {
