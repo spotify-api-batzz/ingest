@@ -259,7 +259,7 @@ Outer:
 func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedResponse) ([]models.RecentListenData, error) {
 	recentPlayedAtList := []interface{}{}
 	for _, recent := range recents.Items {
-		recentPlayedAtList = append(recentPlayedAtList, recent.PlayedAt)
+		recentPlayedAtList = append(recentPlayedAtList, recent.PlayedAt.Format(time.RFC3339))
 	}
 
 	if len(recentPlayedAtList) == 0 {
