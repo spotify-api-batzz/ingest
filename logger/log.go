@@ -32,7 +32,9 @@ type LogMessage struct {
 }
 
 func Log(message interface{}, level VerbosityLevel, data ...interface{}) {
-	callback(message, level, data...)
+	if callback != nil {
+		callback(message, level, data...)
+	}
 
 	var datetime = time.Now()
 

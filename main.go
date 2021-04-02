@@ -1,14 +1,15 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
+	"spotify/logger"
 	"spotify/models"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
 
@@ -31,267 +32,650 @@ type RefreshResponse struct {
 	Access string `json:"access_token"`
 }
 
-func NewAPI(baseURL string, secret string, clientID string, refresh string) API {
-	return API{
-		BaseURL: baseURL,
-		Client:  http.Client{},
-		Creds: ClientCreds{
-			Secret: secret,
-			ID:     clientID,
-		},
-		Tokens: AccessData{
-			Refresh: refresh,
-		},
-	}
-}
-
 type spotify struct {
 	Database *Database
+	UserID   string
 	API      *API
-
-	ExistingArtists map[string]models.Artist
-	ExistingSongs   map[string]models.Song
-	ExistingAlbums  map[string]models.Album
-
-	TopArtists map[string]TopArtistsResponse
-	TopTracks  map[string]TopTracksResponse
-
-	thumbnailsToInsert []interface{}
-
-	Times []string
+	Times    []string
 }
 
-func newSpotify(database *Database, api *API) spotify {
+func newSpotify(database *Database, api *API, userID string) spotify {
 	return spotify{
 		Database: database,
 		API:      api,
 
-		ExistingArtists: make(map[string]models.Artist),
-		ExistingSongs:   make(map[string]models.Song),
-		ExistingAlbums:  make(map[string]models.Album),
-
-		TopArtists: make(map[string]TopArtistsResponse),
-		TopTracks:  make(map[string]TopTracksResponse),
-
-		Times: []string{"short", "medium", "long"},
+		Times:  []string{"short", "medium", "long"},
+		UserID: userID,
 	}
 }
 
 func main() {
+	if len(os.Args) == 1 {
+		panic("You must specify a userID for your first command line arg!")
+	}
+
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
-	// scopes := []string{"user-read-playback-state", "user-read-currently-playing", "user-read-recently-played", "user-top-read"}
+
 	api := NewAPI("https://accounts.spotify.com/", os.Getenv("secret"), os.Getenv("clientID"), os.Getenv("refresh"))
-	// url := fmt.Sprintf("https://accounts.spotify.com/authorize?response_type=code&redirect_uri=http://localhost&client_id=%s", api.Creds.ID)
-
-	// authUrl := fmt.Sprintf("%s&scope=%s", url, strings.Join(scopes, "%20"))
-	// fmt.Println(authUrl)
-
-	// err = api.Authorize("AQADBR9Yq7P6Mhb5V9cnKYKH3xWETG-Dpi8tkC371CsUK7C_3ZR--gejX85u2jhy5g9totBT6mw9SpBxjrDQQWVKRZ_x9npyExsWtprKb4Nv55BEY6jmkT6SRcob6ryJEBM2g_9iXaALUzGtFMAKwo8xRUJ4CmjYxXGnux93N5HKqL_CcKRaTAqg-KkTTpPWhRRnEPqKrZwKIHtm4RuBUlhe5qJKy60dGYNd6WFJ8CT5-kEPSmIGbVZASX-Fe6yw4qdi7D9QC08fpabpTifd97O0EYZ0")
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	panic(err)
-	// }
-
-	database := Database{}
-	database.Connect()
-
-	spotify := newSpotify(&database, &api)
 
 	err = api.Refresh()
 	if err != nil {
 		panic(err)
 	}
 
-	spotify.Tracks()
-	// spotify.Artists()
-	// spotify.Recents()
-
-	// if len(spotify.thumbnailsToInsert) != 0 {
-	// 	err = spotify.Database.CreateThumbnail(spotify.thumbnailsToInsert)
-	// 	if err != nil {
-	// 		panic(err)
-	// 	}
-	// }
-
-}
-
-func (spotify *spotify) Artists() {
-	artistsToQuery := []interface{}{}
-	artistList := []Artist{}
-
-	for _, period := range spotify.Times {
-		fmt.Println(fmt.Sprintf("Processing %s_term time range for artists endpoint", period))
-		artists, err := spotify.API.GetTopArtists(period + "_term")
-		if err != nil {
-			panic(err)
-		}
-
-		for _, artist := range artists.Items {
-			if _, ok := spotify.ExistingArtists[artist.ID]; ok {
-				continue
-			}
-			artistsToQuery = append(artistsToQuery, artist.ID)
-			artistList = append(artistList, artist)
-		}
-		spotify.TopArtists[period] = artists
-	}
-
-	artists, err := spotify.Database.FetchArtistsBySpotifyID(artistsToQuery)
-	if err != nil && err != sql.ErrNoRows {
-		panic(err)
-	}
-
-	artistsToInsert := []interface{}{}
-
-	for _, artist := range artistList {
-		validArtist := false
-		for _, artist := range artists {
-			for _, artistID := range artistsToQuery {
-				if artist.SpotifyID == artistID {
-					spotify.ExistingArtists[artist.SpotifyID] = artist
-					validArtist = true
-				}
-			}
-		}
-		if !validArtist {
-			newArtist := models.NewArtist(artist.Name, artist.ID)
-			newThumbnail := models.NewThumbnail("artist", newArtist.ID.String(), artist.Images[0].URL)
-			spotify.thumbnailsToInsert = append(spotify.thumbnailsToInsert, newThumbnail.ToSlice()...)
-			spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
-			artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
-		}
-	}
-
-	err = spotify.createArtists(artistsToInsert)
+	database := Database{}
+	err = database.Connect()
 	if err != nil {
+		logger.Log("Failed to connect to database", logger.Error)
 		panic(err)
 	}
 
-	topArtistValues := []interface{}{}
-
-	for _, period := range spotify.Times {
-		topArtistResp := spotify.TopArtists[period]
-		for order, artist := range topArtistResp.Items {
-			newTopArtist := models.NewTopArtist(artist.Name, spotify.ExistingArtists[artist.ID].ID.String(), order+1, period, os.Getenv("USER_ID"))
-			topArtistValues = append(topArtistValues, newTopArtist.ToSlice()...)
-		}
+	me, err := api.Me()
+	if err != nil {
+		logger.Log("Failed to fetch Me endpoint", logger.Error)
+		panic(err)
 	}
 
-	err = spotify.createTopArtists(topArtistValues)
+	user, err := HandleBaseUsers(database, os.Args[1], me)
+	if err != nil {
+		logger.Log("Failed when handling base user routine", logger.Error)
+		panic(err)
+	}
+
+	spotify := newSpotify(&database, &api, user.ID)
+
+	err = spotify.DataInserts()
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (spotify *spotify) Recents() {
-	fmt.Println("Processing recently played endpoint")
-	recentlyPlayed, err := spotify.API.GetRecentlyPlayed()
+func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
+	logger.Log("Handling base user data", logger.Notice)
+	baseUsers := []interface{}{"bungusbuster", "anneteresa-gb"}
+	users, err := db.FetchUsersByNames(baseUsers)
 	if err != nil {
 		panic(err)
 	}
 
-	artistsToFetch := []string{}
+	userValues := []interface{}{}
+	userToReturn := models.User{}
+Outer:
+	for _, username := range baseUsers {
+		for _, user := range users {
+			if user.SpotifyID == username {
+				continue Outer
+			}
+			if user.Username == usernameToReturn {
+				userToReturn = user
+			}
+		}
+		newUser := models.NewUser(username.(string), "123", username.(string))
+		userValues = append(userValues, newUser.ToSlice()...)
+	}
 
-	for _, song := range recentlyPlayed.Items {
-		if _, ok := spotify.ExistingArtists[song.Track.Artists[0].ID]; ok {
+	if len(userValues) == 0 {
+		logger.Log("syke bitch the database already contains all necessary users", logger.Notice)
+		return userToReturn, nil
+	}
+
+	err = db.CreateUser(userValues)
+	if err != nil {
+		return models.User{}, err
+	}
+
+	return userToReturn, nil
+}
+
+func (spotify *spotify) DataInserts() error {
+	logger.Log("Attempting to fetch spotify top tracks", logger.Notice)
+	songs, err := spotify.Tracks()
+	if err != nil {
+		logger.Log("Failed to fetch spotify top tracks!", logger.Error)
+		return err
+	}
+
+	logger.Log("Attempting to fetch spotify top artists", logger.Notice)
+	artists, err := spotify.Artists()
+	if err != nil {
+		logger.Log("Failed to fetch spotify top artists!", logger.Error)
+		return err
+	}
+
+	logger.Log("Attempting to fetch spotify recently played tracks", logger.Notice)
+	recents, err := spotify.Recents()
+	if err != nil {
+		logger.Log("Failed to fetch spotify recently played tracks!", logger.Error)
+		return err
+	}
+
+	logger.Log("Fetching tracks from database, then API if missing", logger.Notice)
+	dbSongs, err := spotify.PopulateTracks(songs, recents)
+	if err != nil {
+		logger.Log("Failed to fetch tracks from database", logger.Error)
+		return err
+	}
+
+	logger.Log("Fetching artists from database, then API if missing", logger.Notice)
+	dbArtists, err := spotify.PopulateArtists(songs, artists, recents)
+	if err != nil {
+		logger.Log("Failed to fetch spotify artists!", logger.Error)
+		return err
+	}
+
+	logger.Log("Fetching albums from database, then API if missing", logger.Notice)
+	dbAlbums, err := spotify.PopulateAlbums(songs, recents)
+	if err != nil {
+		logger.Log("Failed to fetch spotify recently played albums!", logger.Error)
+		return err
+	}
+
+	logger.Log("Inserting all relevant thumbnails into DB", logger.Notice)
+	err = spotify.InsertThumbnails(songs, recents, artists, dbArtists, dbAlbums)
+	if err != nil {
+		logger.Log("Failed to insert thumbnails!", logger.Error)
+		return err
+	}
+
+	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Notice)
+	dbSongs, err = spotify.AttachTrackUUIDs(dbSongs, dbArtists, dbAlbums)
+	if err != nil {
+		logger.Log("Failed to attach and insert songs into the database", logger.Error)
+		return err
+	}
+
+	logger.Log("Attaching appropriate UUIDs to albums to be inserted, then inserting", logger.Notice)
+	err = spotify.AttachAlbumUUIDs(dbAlbums, dbArtists)
+	if err != nil {
+		logger.Log("Failed to attach and insert albums into the database", logger.Error)
+		return err
+	}
+
+	logger.Log("Artists dont need related data, simply inserting", logger.Notice)
+	err = spotify.InsertArtists(dbArtists)
+	if err != nil {
+		logger.Log("Failed to insert artists into the database", logger.Error)
+		return err
+	}
+
+	logger.Log("Prefetch and insert phase complete, moving on to user data insert", logger.Notice)
+
+	logger.Log("Fetching all existing recently listened to songs", logger.Notice)
+	existingRecents, err := spotify.FetchExistingRecentListens(recents)
+	if err != nil {
+		logger.Log("Failed to fetch recently listened to songs from the database", logger.Error)
+		return err
+	}
+
+	logger.Log("Inserting all recently listened to songs", logger.Notice)
+	err = spotify.InsertRecentListens(recents, dbSongs, existingRecents)
+	if err != nil {
+		logger.Log("Failed to insert artists into the database database", logger.Error)
+		return err
+	}
+
+	logger.Log("Inserting all top songs", logger.Notice)
+	err = spotify.InsertTopSongs(songs, dbSongs)
+	if err != nil {
+		logger.Log("Failed to insert artists into the database database", logger.Error)
+		return err
+	}
+
+	logger.Log("Inserting all top artists", logger.Notice)
+	err = spotify.InsertTopArtists(artists, dbArtists)
+	if err != nil {
+		logger.Log("Failed to insert artists into the database database", logger.Error)
+		return err
+	}
+
+	return nil
+}
+
+func (spotify *spotify) InsertTopSongs(songs map[string]TopTracksResponse, dbSongs []models.Song) error {
+	newTopSongValues := []interface{}{}
+
+	for term, resp := range songs {
+		for i, song := range resp.Items {
+			dbSong, exists := getSongBySpotifyID(dbSongs, song.ID)
+			newTopSong := models.NewTopSong(spotify.UserID, "", i+1, term)
+			if exists {
+				newTopSong.SongID = dbSong.ID
+			} else {
+				logger.Log(fmt.Sprintf("Failed to attach song ID for song %s", song.Name), logger.Warning)
+			}
+			newTopSongValues = append(newTopSongValues, newTopSong.ToSlice()...)
+		}
+	}
+
+	logger.Log("Inserting top songs", logger.Notice)
+	err := spotify.createTopSongs(newTopSongValues)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (spotify *spotify) InsertTopArtists(songs map[string]TopArtistsResponse, dbArtists []models.Artist) error {
+	newTopArtistValues := []interface{}{}
+
+	for term, resp := range songs {
+		for i, artist := range resp.Items {
+			dbArtist, exists := getArtistBySpotifyID(dbArtists, artist.ID)
+			newTopArtist := models.NewTopArtist(artist.Name, "", i+1, term, spotify.UserID)
+			if exists {
+				newTopArtist.ArtistID = dbArtist.ID
+			} else {
+				logger.Log(fmt.Sprintf("Failed to attach artist ID for artist %s", artist.Name), logger.Warning)
+			}
+			newTopArtistValues = append(newTopArtistValues, newTopArtist.ToSlice()...)
+		}
+	}
+
+	logger.Log("Inserting top artists", logger.Notice)
+	err := spotify.createTopArtists(newTopArtistValues)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (spotify *spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListen) error {
+	recentListenValues := []interface{}{}
+Outer:
+	for _, recentListen := range recents.Items {
+		for _, existingRecentListen := range existingRecentListens {
+			if recentListen.PlayedAt.Format(time.RFC3339) == existingRecentListen.PlayedAt.Format(time.RFC3339) {
+				continue Outer
+			}
+		}
+
+		newRecentListen := models.NewRecentListen("", spotify.UserID, recentListen.PlayedAt)
+		song, exists := getSongBySpotifyID(songs, recentListen.Track.ID)
+		if exists {
+			newRecentListen.SongID = song.ID
+		} else {
+			fmt.Printf("Failed to find %s\n", recentListen.Track.ID)
+		}
+		recentListenValues = append(recentListenValues, newRecentListen.ToSlice()...)
+	}
+
+	if len(recentListenValues) == 0 {
+		logger.Log("syke bitch the database already contains recent listens for this user", logger.Notice)
+		return nil
+	}
+
+	logger.Log("Inserting new recently listened to songs", logger.Notice)
+	err := spotify.Database.CreateRecentlyListened(recentListenValues)
+	if err != nil {
+		return err
+
+	}
+
+	return nil
+}
+
+func (spotify *spotify) FetchExistingRecentListens(recents RecentlyPlayedResponse) ([]models.RecentListen, error) {
+	recentPlayedAtList := []interface{}{}
+	for _, recent := range recents.Items {
+		recentPlayedAtList = append(recentPlayedAtList, recent.PlayedAt.Format(time.RFC3339))
+	}
+
+	recentListens, err := spotify.Database.FetchRecentListensByTime(recentPlayedAtList, spotify.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	return recentListens, nil
+}
+
+func (spotify *spotify) AttachTrackUUIDs(songs []models.Song, artists []models.Artist, albums []models.Album) ([]models.Song, error) {
+	songValues := []interface{}{}
+	for i, song := range songs {
+		if !song.NeedsUpdate {
 			continue
 		}
-		artistsToFetch = append(artistsToFetch, song.Track.Artists[0].ID)
+
+		for _, artist := range artists {
+			if songs[i].ArtistID == artist.SpotifyID {
+				songs[i].ArtistID = artist.ID
+				break
+			}
+		}
+		for _, album := range albums {
+			if songs[i].AlbumID == album.SpotifyID {
+				songs[i].AlbumID = album.ID
+				break
+			}
+		}
+		songValues = append(songValues, songs[i].ToSlice()...)
 	}
 
-	artists, err := spotify.API.GetArtists(artistsToFetch)
+	if len(songValues) == 0 {
+		logger.Log("syke bitch the database already contains all necessary songs", logger.Notice)
+		return songs, nil
+	}
+
+	logger.Log("Inserting new songs", logger.Notice)
+	err := spotify.createSongs(songValues)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	artistsToInsert := []interface{}{}
+	return songs, nil
+}
+
+func (spotify *spotify) InsertArtists(artists []models.Artist) error {
+	artistValues := []interface{}{}
 	for _, artist := range artists {
-		newArtist := models.NewArtist(artist.Name, artist.ID)
-		spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
-		artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
+		if !artist.NeedsUpdate {
+			continue
+		}
+		artistValues = append(artistValues, artist.ToSlice()...)
 	}
 
-	err = spotify.createArtists(artistsToInsert)
+	if len(artistValues) == 0 {
+		logger.Log("syke bitch the database already contains all necessary artists", logger.Notice)
+		return nil
+	}
+
+	logger.Log("Inserting new artists", logger.Notice)
+	err := spotify.createArtists(artistValues)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
-	songsToCreate := []interface{}{}
-	for _, recent := range recentlyPlayed.Items {
-		if _, ok := spotify.ExistingSongs[recent.Track.ID]; !ok {
-			newSong := models.NewSong(recent.Track.Name, recent.Track.ID, recent.Track.Album.ID, spotify.ExistingArtists[recent.Track.Artists[0].ID].ID.String())
-			songsToCreate = append(songsToCreate, newSong.ToSlice()...)
-			spotify.ExistingSongs[newSong.SpotifyID] = newSong
+	return nil
+}
+
+func (spotify *spotify) AttachAlbumUUIDs(albums []models.Album, artists []models.Artist) error {
+	albumValues := []interface{}{}
+
+	for i, album := range albums {
+		if !album.NeedsUpdate {
+			continue
+		}
+		for _, artist := range artists {
+			if albums[i].ArtistID == artist.SpotifyID {
+				albums[i].ArtistID = artist.ID
+				break
+			}
+		}
+		albumValues = append(albumValues, albums[i].ToSlice()...)
+	}
+
+	if len(albumValues) == 0 {
+		logger.Log("syke bitch the database already contains all necessary albums", logger.Notice)
+		return nil
+	}
+
+	logger.Log("Inserting new albums", logger.Notice)
+	err := spotify.createAlbums(albumValues)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (spotify *spotify) PopulateTracks(songs map[string]TopTracksResponse, recents RecentlyPlayedResponse) ([]models.Song, error) {
+	// Songs to attempt to fetch from DB
+	songSpotifyIDs := []interface{}{}
+	for _, resp := range songs {
+		for _, song := range resp.Items {
+			songSpotifyIDs = append(songSpotifyIDs, song.ID)
 		}
 	}
 
-	err = spotify.createSongs(songsToCreate)
-	if err != nil {
-		panic(err)
+	for _, song := range recents.Items {
+		songSpotifyIDs = append(songSpotifyIDs, song.Track.ID)
 	}
 
-	recentlyToCreate := []interface{}{}
-	for _, recent := range recentlyPlayed.Items {
-		existingSong := spotify.ExistingSongs[recent.Track.ID]
-		newRecentlyListened := models.NewRecentListen(existingSong.ID.String(), os.Getenv("USER_ID"), recent.PlayedAt)
-		recentlyToCreate = append(recentlyToCreate, newRecentlyListened.ToSlice()...)
+	dbSongs, err := spotify.Database.FetchSongsBySpotifyID(songSpotifyIDs)
+	if err != nil {
+		return nil, err
 	}
 
-	err = spotify.createRecentlyListened(recentlyToCreate)
-	if err != nil {
-		panic(err)
+	// Songs to attempt to fetch from API
+	songsToFetch := []string{}
+Outer:
+	for _, id := range songSpotifyIDs {
+		for _, dbSong := range dbSongs {
+			if dbSong.SpotifyID == id {
+				continue Outer
+			}
+		}
+		songsToFetch = append(songsToFetch, id.(string))
 	}
+
+	if len(songsToFetch) == 0 {
+		logger.Log("Skipping querying API for tracks as database contains all necessary data", logger.Notice)
+		return dbSongs, nil
+	}
+
+	apiSongs, err := spotify.API.GetTracks(songsToFetch)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, song := range apiSongs {
+		dbSongs = append(dbSongs, models.Song{Name: song.Name, SpotifyID: song.ID, AlbumID: song.Album.ID, ArtistID: song.Artists[0].ID, NeedsUpdate: true, ID: uuid.New().String()})
+	}
+
+	return dbSongs, nil
 }
 
-// func (spotify *spotify) fetchSongs(songIDs []interface{}) ([]models.Song, error) {
-// 	songs, err := spotify.Database.FetchSongsBySpotifyID(songIDs)
-// 	if err != nil && err != sql.ErrNoRows {
-// 		return nil, err
-// 	}
+func (spotify *spotify) PopulateArtists(songs map[string]TopTracksResponse, artists map[string]TopArtistsResponse, recents RecentlyPlayedResponse) ([]models.Artist, error) {
+	// Songs to attempt to fetch from DB
+	artistSpotifyIDs := []interface{}{}
+	for _, resp := range songs {
+		for _, song := range resp.Items {
+			artistSpotifyIDs = append(artistSpotifyIDs, song.Artists[0].ID)
+		}
+	}
 
-// 	songsToFetch := []string{}
-// Outer:
-// 	for _, songID := range songIDs {
-// 		for _, song := range songs {
-// 			if song.SpotifyID == songID {
-// 				continue Outer
-// 			}
-// 		}
-// 		songsToFetch = append(songsToFetch, songID.(string))
-// 	}
+	for _, resp := range artists {
+		for _, artist := range resp.Items {
+			artistSpotifyIDs = append(artistSpotifyIDs, artist.ID)
+		}
+	}
 
-// 	apiSongs, err := spotify.API.GetTracks(songsToFetch)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	for _, song := range recents.Items {
+		artistSpotifyIDs = append(artistSpotifyIDs, song.Track.Album.Artists[0].ID)
+	}
 
-// 	songsToInsert := []interface{}{}
-// 	for _, song := range apiSongs {
-//     newSong := models.NewSong(song.Name, song.ID, song.Album.ID, song.Artists[] )
-// 	}
+	dbArtists, err := spotify.Database.FetchArtistsBySpotifyID(artistSpotifyIDs)
+	if err != nil {
+		return nil, err
+	}
 
-// }
+	// Songs to attempt to fetch from API
+	artistsToFetch := []string{}
+Outer:
+	for _, id := range artistSpotifyIDs {
+		for _, dbArtist := range dbArtists {
+			if dbArtist.SpotifyID == id {
+				continue Outer
+			}
+		}
+		artistsToFetch = append(artistsToFetch, id.(string))
+	}
 
-// for _, track := range tracks.Items {
-// 	if _, ok := spotify.ExistingArtists[track.Artists[0].ID]; !ok {
-// 		artistsToFetch = append(artistsToFetch, track.Artists[0].ID)
-// 	}
-// 	if _, ok := spotify.ExistingSongs[track.ID]; !ok {
-// 		songsToQuery = append(songsToQuery, track.ID)
-// 	}
-// 	albumsToQuery = append(albumsToQuery, track.Album.ID)
-// 	songList = append(songList, track)
-// }
-// spotify.TopTracks[period] = tracks
+	if len(artistsToFetch) == 0 {
+		logger.Log("Skipping querying API for tracks as database contains all necessary data", logger.Notice)
+		return dbArtists, nil
+	}
 
-func (spotify *spotify) aaa() (map[string]TopTracksResponse, error) {
+	apiArtists, err := spotify.API.GetArtists(artistsToFetch)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, artist := range apiArtists {
+		dbArtists = append(dbArtists, models.Artist{Name: artist.Name, SpotifyID: artist.ID, NeedsUpdate: true, ID: uuid.New().String()})
+	}
+
+	return dbArtists, nil
+}
+
+// too many args should use struct tbh
+func (spotify *spotify) InsertThumbnails(songs map[string]TopTracksResponse, recents RecentlyPlayedResponse, artists map[string]TopArtistsResponse, dbArtists []models.Artist, dbAlbums []models.Album) error {
+	thumbnails := []models.Thumbnail{}
+	for _, resp := range songs {
+		for _, song := range resp.Items {
+			dbAlbum, exists := getAlbumBySpotifyID(dbAlbums, song.Album.ID)
+			if !exists {
+				logger.Log(fmt.Sprintf("Failed to attach album ID for album %s", song.Album.Name), logger.Warning)
+			}
+			for _, image := range song.Album.Images {
+				thumbnail := models.NewThumbnail("album", "", image.URL, image.Height, image.Width)
+				if exists {
+					thumbnail.EntityID = dbAlbum.ID
+				}
+				thumbnails = append(thumbnails, thumbnail)
+			}
+		}
+	}
+
+	for _, resp := range artists {
+		for _, artist := range resp.Items {
+			dbArtist, exists := getArtistBySpotifyID(dbArtists, artist.ID)
+			if !exists {
+				logger.Log(fmt.Sprintf("Failed to attach artist ID for artist %s", artist.Name), logger.Warning)
+			}
+			for _, image := range artist.Images {
+				thumbnail := models.NewThumbnail("artist", "", image.URL, image.Height, image.Width)
+				if exists {
+					thumbnail.EntityID = dbArtist.ID
+				}
+				thumbnails = append(thumbnails, thumbnail)
+			}
+		}
+	}
+
+	for _, song := range recents.Items {
+		dbAlbum, exists := getAlbumBySpotifyID(dbAlbums, song.Track.Album.ID)
+		if !exists {
+			logger.Log(fmt.Sprintf("Failed to attach album ID for track %s", song.Track.Album.Name), logger.Warning)
+		}
+		for _, image := range song.Track.Album.Images {
+			thumbnail := models.NewThumbnail("album", "", image.URL, image.Height, image.Width)
+			if exists {
+				thumbnail.EntityID = dbAlbum.ID
+			}
+			thumbnails = append(thumbnails, thumbnail)
+		}
+	}
+
+	entityIDs := []interface{}{}
+	for _, thumbnail := range thumbnails {
+		entityIDs = append(entityIDs, thumbnail.EntityID)
+	}
+
+	dbThumbnails, err := spotify.Database.FetchThumbnailsByEntityID(entityIDs)
+	if err != nil {
+		return err
+	}
+
+	thumbnailsToInsert := []interface{}{}
+	for _, thumbnail := range thumbnails {
+		_, exists := getThumbnailByEntityID(dbThumbnails, thumbnail.EntityID)
+		if !exists {
+			thumbnailsToInsert = append(thumbnailsToInsert, thumbnail.ToSlice()...)
+		}
+	}
+
+	if len(thumbnailsToInsert) == 0 {
+		logger.Log("syke bitch the database already contains all necessary thumbnails", logger.Notice)
+		return nil
+	}
+
+	err = spotify.createThumbnails(thumbnailsToInsert)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (spotify *spotify) PopulateAlbums(songs map[string]TopTracksResponse, recents RecentlyPlayedResponse) ([]models.Album, error) {
+	// Songs to attempt to fetch from DB
+	albumSpotifyIDs := []interface{}{}
+	for _, resp := range songs {
+		for _, song := range resp.Items {
+			albumSpotifyIDs = append(albumSpotifyIDs, song.Album.ID)
+		}
+	}
+
+	for _, song := range recents.Items {
+		albumSpotifyIDs = append(albumSpotifyIDs, song.Track.Album.ID)
+	}
+
+	dbAlbums, err := spotify.Database.FetchAlbumsBySpotifyID(albumSpotifyIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Songs to attempt to fetch from API
+	albumsToFetch := []string{}
+Outer:
+	for _, id := range albumSpotifyIDs {
+		for _, dbAlbum := range dbAlbums {
+			if dbAlbum.SpotifyID == id {
+				continue Outer
+			}
+		}
+		albumsToFetch = append(albumsToFetch, id.(string))
+	}
+
+	if len(albumsToFetch) == 0 {
+		logger.Log("Skipping querying API for albums as database contains all necessary data", logger.Notice)
+		return dbAlbums, nil
+	}
+
+	apiAlbums, err := spotify.API.GetAlbums(albumsToFetch)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, album := range apiAlbums {
+		dbAlbums = append(dbAlbums, models.Album{Name: album.Name, SpotifyID: album.ID, ArtistID: album.Artists[0].ID, NeedsUpdate: true, ID: uuid.New().String()})
+	}
+
+	return dbAlbums, nil
+}
+
+func (spotify *spotify) Artists() (map[string]TopArtistsResponse, error) {
+	artistsResp := make(map[string]TopArtistsResponse)
+
+	for _, period := range spotify.Times {
+		logger.Log(fmt.Sprintf("Processing %s_term time range for artists endpoint", period), logger.Notice)
+		artists, err := spotify.API.GetTopArtists(period + "_term")
+		if err != nil {
+			return nil, err
+		}
+		artistsResp[period] = artists
+	}
+	return artistsResp, nil
+}
+
+func (spotify *spotify) Recents() (RecentlyPlayedResponse, error) {
+	recentlyPlayed, err := spotify.API.GetRecentlyPlayed()
+	if err != nil {
+		return RecentlyPlayedResponse{}, err
+	}
+
+	return recentlyPlayed, nil
+}
+
+func (spotify *spotify) Tracks() (map[string]TopTracksResponse, error) {
 	topTrackResp := make(map[string]TopTracksResponse)
 
 	for _, period := range spotify.Times {
-		fmt.Printf("Processing %s_term time range for tracks endpoint\n", period)
+		logger.Log(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period), logger.Notice)
 		tracks, err := spotify.API.GetTopTracks(period + "_term")
 		if err != nil {
 			return nil, err
@@ -300,19 +684,6 @@ func (spotify *spotify) aaa() (map[string]TopTracksResponse, error) {
 		topTrackResp[period] = tracks
 	}
 	return topTrackResp, nil
-}
-
-func getSongByName()
-
-func (spotify *spotify) createRecentlyListened(recentlyListenedValues []interface{}) error {
-	if len(recentlyListenedValues) == 0 {
-		return nil
-	}
-	err := spotify.Database.CreateRecentlyListened(recentlyListenedValues)
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 func (spotify *spotify) createArtists(artistValues []interface{}) error {
@@ -360,9 +731,6 @@ func (spotify *spotify) createAlbums(albumValues []interface{}) error {
 }
 
 func (spotify *spotify) createThumbnails(thumbnailValues []interface{}) error {
-	if len(thumbnailValues) == 0 {
-		return nil
-	}
 	err := spotify.Database.CreateThumbnail(thumbnailValues)
 	if err != nil {
 		return err
@@ -379,6 +747,42 @@ func (spotify *spotify) createTopSongs(topSongValues []interface{}) error {
 		return err
 	}
 	return nil
+}
+
+func getSongBySpotifyID(songs []models.Song, spotifyID string) (models.Song, bool) {
+	for _, song := range songs {
+		if song.SpotifyID == spotifyID {
+			return song, true
+		}
+	}
+	return models.Song{}, false
+}
+
+func getArtistBySpotifyID(artists []models.Artist, spotifyID string) (models.Artist, bool) {
+	for _, artist := range artists {
+		if artist.SpotifyID == spotifyID {
+			return artist, true
+		}
+	}
+	return models.Artist{}, false
+}
+
+func getAlbumBySpotifyID(albums []models.Album, spotifyID string) (models.Album, bool) {
+	for _, album := range albums {
+		if album.SpotifyID == spotifyID {
+			return album, true
+		}
+	}
+	return models.Album{}, false
+}
+
+func getThumbnailByEntityID(thumbnails []models.Thumbnail, entityID string) (models.Thumbnail, bool) {
+	for _, thumbnail := range thumbnails {
+		if thumbnail.EntityID == entityID {
+			return thumbnail, true
+		}
+	}
+	return models.Thumbnail{}, false
 }
 
 func BasicAuth(clientID string, clientSecret string) string {

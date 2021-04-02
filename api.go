@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"spotify/utils"
 	"strings"
 )
 
@@ -15,6 +16,52 @@ type API struct {
 	Creds   ClientCreds
 	Client  http.Client
 	Tokens  AccessData
+}
+
+func NewAPI(baseURL string, secret string, clientID string, refresh string) API {
+	return API{
+		BaseURL: baseURL,
+		Client:  http.Client{},
+		Creds: ClientCreds{
+			Secret: secret,
+			ID:     clientID,
+		},
+		Tokens: AccessData{
+			Refresh: refresh,
+		},
+	}
+}
+
+func (api *API) Me() (MeResponse, error) {
+	req, err := http.NewRequest("GET", "https://api.spotify.com/v1/me", nil)
+	if err != nil {
+		return MeResponse{}, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
+
+	body, err := api.Client.Do(req)
+	if err != nil {
+		return MeResponse{}, err
+	}
+	defer body.Body.Close()
+
+	bytes, err := ioutil.ReadAll(body.Body)
+	if err != nil {
+		return MeResponse{}, err
+	}
+
+	if body.StatusCode != 200 {
+		fmt.Println(string(bytes))
+		return MeResponse{}, errors.New("status code not 200")
+	}
+
+	meResp := MeResponse{}
+	err = json.Unmarshal(bytes, &meResp)
+	if err != nil {
+		return MeResponse{}, err
+	}
+
+	return meResp, nil
 }
 
 func (api *API) GetRecentlyPlayed() (RecentlyPlayedResponse, error) {
@@ -120,7 +167,7 @@ func (api *API) GetTopTracks(period string) (TopTracksResponse, error) {
 }
 
 func (api *API) GetArtists(ids []string) ([]Artists, error) {
-	chunkedIDs := chunkSlice(ids, 50)
+	chunkedIDs := utils.ChunkSlice(ids, 50)
 	artistList := []Artists{}
 
 	for _, chunk := range chunkedIDs {
@@ -160,13 +207,13 @@ func (api *API) GetArtists(ids []string) ([]Artists, error) {
 }
 
 func (api *API) GetTracks(ids []string) ([]Song, error) {
-	chunkedIDs := chunkSlice(ids, 50)
+	chunkedIDs := utils.ChunkSlice(ids, 50)
 	trackList := []Song{}
 
 	for _, chunk := range chunkedIDs {
 		data := url.Values{}
 		data.Set("ids", strings.Join(chunk, ","))
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/tracks ?%s", data.Encode()), nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/tracks?%s", data.Encode()), nil)
 		if err != nil {
 			return nil, err
 		}
@@ -194,6 +241,47 @@ func (api *API) GetTracks(ids []string) ([]Song, error) {
 		}
 
 		trackList = append(trackList, tracksResp.Tracks...)
+	}
+
+	return trackList, nil
+}
+
+func (api *API) GetAlbums(ids []string) ([]Album, error) {
+	chunkedIDs := utils.ChunkSlice(ids, 20)
+	trackList := []Album{}
+
+	for _, chunk := range chunkedIDs {
+		data := url.Values{}
+		data.Set("ids", strings.Join(chunk, ","))
+		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/albums?%s", data.Encode()), nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
+
+		body, err := api.Client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer body.Body.Close()
+
+		bytes, err := ioutil.ReadAll(body.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		if body.StatusCode != 200 {
+			fmt.Println(string(bytes))
+			return nil, errors.New("status code not 200")
+		}
+
+		albumResp := AlbumResponse{}
+		err = json.Unmarshal(bytes, &albumResp)
+		if err != nil {
+			return nil, err
+		}
+
+		trackList = append(trackList, albumResp.Albums...)
 	}
 
 	return trackList, nil

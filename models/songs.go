@@ -1,13 +1,14 @@
 package models
 
 import (
+	"spotify/utils"
 	"time"
 
 	"github.com/google/uuid"
 )
 
 type Song struct {
-	ID        uuid.UUID `db:"id"`
+	ID        string    `db:"id"`
 	SpotifyID string    `db:"spotify_id"`
 	AlbumID   string    `db:"album_id"`
 	ArtistID  string    `db:"artist_id"`
@@ -15,12 +16,14 @@ type Song struct {
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
 
+	NeedsUpdate bool
+
 	Album
 }
 
 func NewSong(name string, spotifyID string, albumID string, artistID string) Song {
 	return Song{
-		ID:        uuid.New(),
+		ID:        uuid.New().String(),
 		Name:      name,
 		SpotifyID: spotifyID,
 		ArtistID:  artistID,
@@ -35,8 +38,8 @@ func (s *Song) ToSlice() []interface{} {
 	slice[2] = s.AlbumID
 	slice[3] = s.ArtistID
 	slice[4] = s.Name
-	slice[5] = time.Now().UTC().Format(time.RFC3339)
-	slice[6] = time.Now().UTC().Format(time.RFC3339)
+	slice[5] = utils.Now()
+	slice[6] = utils.Now()
 
 	return slice
 }

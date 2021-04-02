@@ -41,6 +41,25 @@ func (database *Database) Connect() error {
 	return nil
 }
 
+func (d *Database) FetchUsersByNames(names []interface{}) ([]models.User, error) {
+	user := []models.User{}
+	sql := fmt.Sprintf("SELECT * FROM users WHERE username IN (%s)", PrepareInStringPG(1, len(names), 1))
+	err := d.DB.Select(&user, sql, names...)
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
+}
+
+func (d *Database) FetchUserByName(name string) (models.User, error) {
+	user := models.User{}
+	err := d.DB.Get(&user, "SELECT * FROM users WHERE username = $1", name)
+	if err != nil {
+		return models.User{}, err
+	}
+	return user, nil
+}
+
 func (d *Database) FetchArtistBySpotifyID(spotifyID string) (models.Artist, error) {
 	artist := models.Artist{}
 	err := d.DB.Get(&artist, "SELECT * FROM artists WHERE spotify_id = $1", spotifyID)
@@ -89,9 +108,41 @@ func (d *Database) FetchArtistByID(id string) (models.Artist, error) {
 	return artist, nil
 }
 
+func (d *Database) FetchRecentListensByTime(playedAts []interface{}, userID string) ([]models.RecentListen, error) {
+	recentListens := []models.RecentListen{}
+	sql := fmt.Sprintf("SELECT * FROM recent_listens WHERE user_id = $1 AND played_at IN (%s)", PrepareInStringPG(1, len(playedAts), 2))
+	vars := []interface{}{}
+	vars = append(vars, userID)
+	vars = append(vars, playedAts...)
+	err := d.DB.Select(&recentListens, sql, vars...)
+	if err != nil {
+		return nil, err
+	}
+	return recentListens, nil
+}
+
+func (d *Database) FetchThumbnailsByEntityID(entityIDs []interface{}) ([]models.Thumbnail, error) {
+	thumbnails := []models.Thumbnail{}
+	sql := fmt.Sprintf("SELECT * FROM thumbnails WHERE entity_id IN (%s)", PrepareInStringPG(1, len(entityIDs), 1))
+	err := d.DB.Select(&thumbnails, sql, entityIDs...)
+	if err != nil {
+		return nil, err
+	}
+	return thumbnails, nil
+}
+
 func (d *Database) CreateArtist(artistValues []interface{}) error {
 	sql := fmt.Sprintf("INSERT INTO artists (id, name, spotify_id, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(5, len(artistValues)/5))
 	_, err := d.DB.Exec(sql, artistValues...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Database) CreateUser(userValues []interface{}) error {
+	sql := fmt.Sprintf("INSERT INTO users (id, username, password, spotify_id, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(6, len(userValues)/6))
+	_, err := d.DB.Exec(sql, userValues...)
 	if err != nil {
 		return err
 	}
@@ -115,19 +166,8 @@ func (d *Database) CreateSong(songValues []interface{}) error {
 	}
 	return nil
 }
-
-// slice := make([]interface{}, 6)
-// slice[0] = t.ID
-// slice[1] = t.Entity
-// slice[2] = t.EntityID
-// slice[3] = t.URL
-// slice[4] = time.Now().UTC().Format(time.RFC3339)
-// slice[5] = time.Now().UTC().Format(time.RFC3339)
-
-// return slice
-
 func (d *Database) CreateThumbnail(thumbnailValues []interface{}) error {
-	sql := fmt.Sprintf("INSERT INTO thumbnails (id, entity, entity_id, url, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(6, len(thumbnailValues)/6))
+	sql := fmt.Sprintf("INSERT INTO thumbnails (id, entity, entity_id, url, width, height, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(8, len(thumbnailValues)/8))
 	_, err := d.DB.Exec(sql, thumbnailValues...)
 	if err != nil {
 		return err
@@ -164,6 +204,17 @@ func (d *Database) CreateRecentlyListened(recentlyListenedValues []interface{}) 
 
 func PrepareBatchValuesPG(paramLength int, valueLength int) string {
 	counter := 1
+	var values string
+	for i := 0; i < valueLength; i++ {
+		values = fmt.Sprintf("%s, %s", values, genValString(paramLength, &counter))
+	}
+	return strings.TrimPrefix(values, ", ")
+}
+
+func PrepareInStringPG(paramLength int, valueLength int, counter int) string {
+	if counter == 0 {
+		counter = 1
+	}
 	var values string
 	for i := 0; i < valueLength; i++ {
 		values = fmt.Sprintf("%s, %s", values, genValString(paramLength, &counter))
