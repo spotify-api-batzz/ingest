@@ -354,6 +354,7 @@ func (api *API) Refresh() error {
 	}
 
 	if body.StatusCode != 200 {
+		fmt.Println(string(bytes))
 		return errors.New("status code not 200")
 	}
 

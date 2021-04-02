@@ -7,6 +7,7 @@ import (
 	"os"
 	"spotify/logger"
 	"spotify/models"
+	"spotify/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,10 +60,11 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	api := NewAPI("https://accounts.spotify.com/", os.Getenv("secret"), os.Getenv("clientID"), os.Getenv(fmt.Sprintf("refresh_%s", os.Args[1])))
+	api := NewAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", os.Args[1])))
 
 	err = api.Refresh()
 	if err != nil {
+		logger.Log("Failed to refresh API token!", logger.Error)
 		panic(err)
 	}
 

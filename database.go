@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"spotify/logger"
 	"spotify/models"
+	"spotify/utils"
 	"strings"
 
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -17,11 +17,11 @@ type Database struct {
 
 // Connect opens up a conection to the database
 func (database *Database) Connect() error {
-	dbUser := os.Getenv("DB_USER")
-	dbIP := os.Getenv("DB_IP")
-	dbPass := os.Getenv("DB_PASS")
-	dbPort := os.Getenv("DB_PORT")
-	dbTable := os.Getenv("DB_TABLE")
+	dbUser := utils.MustGetEnv("DB_USER")
+	dbIP := utils.MustGetEnv("DB_IP")
+	dbPass := utils.MustGetEnv("DB_PASS")
+	dbPort := utils.MustGetEnv("DB_PORT")
+	dbTable := utils.MustGetEnv("DB_TABLE")
 
 	url := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s", dbIP, dbPort, dbTable, dbUser, dbPass)
 
