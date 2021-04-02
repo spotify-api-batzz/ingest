@@ -11,6 +11,25 @@ import (
 	"strings"
 )
 
+type AccessData struct {
+	Token   string
+	Refresh string
+}
+
+type ClientCreds struct {
+	ID     string
+	Secret string
+}
+
+type AuthResponse struct {
+	Access  string `json:"access_token"`
+	Refresh string `json:"refresh_token"`
+}
+
+type RefreshResponse struct {
+	Access string `json:"access_token"`
+}
+
 type API struct {
 	BaseURL string
 	Creds   ClientCreds
