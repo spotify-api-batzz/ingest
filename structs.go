@@ -126,6 +126,10 @@ type TopTracksResponse struct {
 	Next     string      `json:"next"`
 }
 
+type TracksResponse struct {
+	Tracks []Song `json:"tracks"`
+}
+
 type ArtistsResponse struct {
 	Artists []Artists `json:"artists"`
 }
