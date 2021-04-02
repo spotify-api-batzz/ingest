@@ -282,7 +282,6 @@ func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedRespons
 		recentListenIDs = append(recentListenIDs, recentListen.ID.String())
 	}
 
-	fmt.Println(recentPlayedAtList)
 	recentListenData, err := spotify.Database.FetchRecentListenDataByTime(recentPlayedAtList, recentListenIDs)
 	if err != nil {
 		return nil, err
