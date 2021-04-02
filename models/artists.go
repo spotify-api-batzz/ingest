@@ -1,6 +1,7 @@
 package models
 
 import (
+	"spotify/utils"
 	"time"
 
 	"github.com/google/uuid"
@@ -29,8 +30,8 @@ func (a *Artist) ToSlice() []interface{} {
 	slice[0] = a.ID
 	slice[1] = a.Name
 	slice[2] = a.SpotifyID
-	slice[3] = time.Now().In(time.UTC).Format(time.RFC3339)
-	slice[4] = time.Now().In(time.UTC).Format(time.RFC3339)
+	slice[3] = utils.Now()
+	slice[4] = utils.Now()
 
 	return slice
 }
