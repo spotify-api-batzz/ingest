@@ -106,11 +106,11 @@ func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (mod
 Outer:
 	for _, username := range baseUsers {
 		for _, user := range users {
-			if user.SpotifyID == username {
-				continue Outer
-			}
 			if user.Username == usernameToReturn {
 				userToReturn = user
+			}
+			if user.SpotifyID == username {
+				continue Outer
 			}
 		}
 		newUser := models.NewUser(username.(string), "123", username.(string))
