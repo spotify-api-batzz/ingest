@@ -275,6 +275,18 @@ func (spotify *spotify) Recents() {
 
 // }
 
+// for _, track := range tracks.Items {
+// 	if _, ok := spotify.ExistingArtists[track.Artists[0].ID]; !ok {
+// 		artistsToFetch = append(artistsToFetch, track.Artists[0].ID)
+// 	}
+// 	if _, ok := spotify.ExistingSongs[track.ID]; !ok {
+// 		songsToQuery = append(songsToQuery, track.ID)
+// 	}
+// 	albumsToQuery = append(albumsToQuery, track.Album.ID)
+// 	songList = append(songList, track)
+// }
+// spotify.TopTracks[period] = tracks
+
 func (spotify *spotify) aaa() (map[string]TopTracksResponse, error) {
 	topTrackResp := make(map[string]TopTracksResponse)
 
@@ -288,121 +300,6 @@ func (spotify *spotify) aaa() (map[string]TopTracksResponse, error) {
 		topTrackResp[period] = tracks
 	}
 	return topTrackResp, nil
-}
-
-func (spotify *spotify) Tracks() {
-	songsToQuery := []interface{}{}
-	albumsToQuery := []interface{}{}
-	songList := []Song{}
-	artistsToFetch := []string{}
-
-	for _, period := range spotify.Times {
-		fmt.Printf("Processing %s_term time range for tracks endpoint\n", period)
-		tracks, err := spotify.API.GetTopTracks(period + "_term")
-		if err != nil {
-			panic(err)
-		}
-
-		for _, track := range tracks.Items {
-			if _, ok := spotify.ExistingArtists[track.Artists[0].ID]; !ok {
-				artistsToFetch = append(artistsToFetch, track.Artists[0].ID)
-			}
-			if _, ok := spotify.ExistingSongs[track.ID]; !ok {
-				songsToQuery = append(songsToQuery, track.ID)
-			}
-			albumsToQuery = append(albumsToQuery, track.Album.ID)
-			songList = append(songList, track)
-		}
-		spotify.TopTracks[period] = tracks
-	}
-
-	albums, err := spotify.Database.FetchAlbumsBySpotifyID(albumsToQuery)
-	if err != nil && err != sql.ErrNoRows {
-		panic(err)
-	}
-
-	songsToInsert := []interface{}{}
-	albumsToInsert := []interface{}{}
-
-	artists, err := spotify.API.GetArtists(artistsToFetch)
-	if err != nil {
-		panic(err)
-	}
-
-	artistsToInsert := []interface{}{}
-	for _, artist := range artists {
-		newArtist := models.NewArtist(artist.Name, artist.ID)
-		spotify.ExistingArtists[newArtist.SpotifyID] = newArtist
-		artistsToInsert = append(artistsToInsert, newArtist.ToSlice()...)
-	}
-
-	for _, song := range songList {
-		validAlbum := false
-		if _, ok := spotify.ExistingAlbums[song.Album.ID]; ok {
-			continue
-		}
-		for _, album := range albums {
-			if song.Album.ID == album.SpotifyID {
-				spotify.ExistingAlbums[album.SpotifyID] = album
-				validAlbum = true
-			}
-		}
-		if !validAlbum {
-			newAlbum := models.NewAlbum(song.Album.Name, spotify.ExistingArtists[song.Artists[0].ID].ID.String(), song.Album.ID)
-			spotify.ExistingAlbums[newAlbum.SpotifyID] = newAlbum
-			newThumbnail := models.NewThumbnail("album", newAlbum.ID.String(), song.Album.Images[0].URL)
-			spotify.thumbnailsToInsert = append(spotify.thumbnailsToInsert, newThumbnail.ToSlice()...)
-			albumsToInsert = append(albumsToInsert, newAlbum.ToSlice()...)
-		}
-	}
-
-	for _, song := range songList {
-		validSong := false
-		for _, song := range songs {
-			for _, artistID := range songsToQuery {
-				if song.SpotifyID == artistID {
-					spotify.ExistingSongs[song.SpotifyID] = song
-					validSong = true
-				}
-			}
-		}
-		if !validSong {
-			newSong := models.NewSong(song.Name, song.ID, spotify.ExistingAlbums[song.Album.ID].ID.String(), spotify.ExistingArtists[song.Artists[0].ID].ID.String())
-
-			spotify.ExistingSongs[newSong.SpotifyID] = newSong
-			songsToInsert = append(songsToInsert, newSong.ToSlice()...)
-		}
-	}
-
-	err = spotify.createSongs(songsToInsert)
-	if err != nil {
-		panic(err)
-	}
-
-	err = spotify.createAlbums(albumsToInsert)
-	if err != nil {
-		panic(err)
-	}
-
-	topSongValues := []interface{}{}
-
-	for _, period := range spotify.Times {
-		topSongResp := spotify.TopTracks[period]
-		for order, song := range topSongResp.Items {
-			songID := spotify.ExistingSongs[song.ID].ID.String()
-			if songID == "00000000-0000-0000-0000-000000000000" {
-				songID = song.ID
-			}
-			newTopSong := models.NewTopSong(os.Getenv("USER_ID"), songID, order+1, period)
-			topSongValues = append(topSongValues, newTopSong.ToSlice()...)
-		}
-	}
-
-	err = spotify.createTopSongs(topSongValues)
-	if err != nil {
-		panic(err)
-	}
-
 }
 
 func getSongByName()
