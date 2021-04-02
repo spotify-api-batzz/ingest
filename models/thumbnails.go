@@ -29,6 +29,14 @@ func NewThumbnail(entity string, entityID string, URL string, height int, width 
 	}
 }
 
+func (r *Thumbnail) TableName() string {
+	return "thumbnails"
+}
+
+func (r *Thumbnail) TableColumns() []string {
+	return []string{"id", "entity", "entity_id", "url", "width", "height", "created_at", "updated_at"}
+}
+
 func (t *Thumbnail) ToSlice() []interface{} {
 	slice := make([]interface{}, 8)
 	slice[0] = t.ID

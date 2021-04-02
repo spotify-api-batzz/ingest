@@ -109,21 +109,21 @@ func (spotify *Spotify) DataInserts() error {
 	logger.Log("Inserting all recently listened to songs", logger.Notice)
 	err = spotify.InsertRecentListens(recents, dbSongs, existingRecents)
 	if err != nil {
-		logger.Log("Failed to insert artists into the database database", logger.Error)
+		logger.Log("Failed to insert recentlistens into the database", logger.Error)
 		return err
 	}
 
 	logger.Log("Inserting all top songs", logger.Notice)
 	err = spotify.InsertTopSongs(songs, dbSongs)
 	if err != nil {
-		logger.Log("Failed to insert artists into the database database", logger.Error)
+		logger.Log("Failed to insert top songs into the database", logger.Error)
 		return err
 	}
 
 	logger.Log("Inserting all top artists", logger.Notice)
 	err = spotify.InsertTopArtists(artists, dbArtists)
 	if err != nil {
-		logger.Log("Failed to insert artists into the database database", logger.Error)
+		logger.Log("Failed to insert top artists into the database", logger.Error)
 		return err
 	}
 
@@ -131,28 +131,39 @@ func (spotify *Spotify) DataInserts() error {
 }
 
 func (spotify *Spotify) InsertTopSongs(songs map[string]TopTracksResponse, dbSongs []models.Song) error {
-	newTopSongValues := []interface{}{}
+	topSongDataValues := []interface{}{}
+	topSongValues := []interface{}{}
+
+	topSong := models.NewTopSong(spotify.UserID)
 
 	for term, resp := range songs {
 		for i, song := range resp.Items {
 			dbSong, exists := getSongBySpotifyID(dbSongs, song.ID)
-			newTopSong := models.NewTopSong(spotify.UserID, "", i+1, term)
+			newTopSong := models.NewTopSongData(topSong.ID.String(), "", i+1, term)
 			if exists {
 				newTopSong.SongID = dbSong.ID
 			} else {
 				logger.Log(fmt.Sprintf("Failed to attach song ID for song %s", song.Name), logger.Warning)
 			}
-			newTopSongValues = append(newTopSongValues, newTopSong.ToSlice()...)
+			topSongDataValues = append(topSongDataValues, newTopSong.ToSlice()...)
 		}
 	}
 
-	if len(newTopSongValues) == 0 {
+	topSongValues = append(topSongValues, topSong.ToSlice()...)
+
+	if len(topSongDataValues) == 0 {
 		logger.Log("syke bitch no top song data to insert", logger.Notice)
 		return nil
 	}
 
-	logger.Log("Inserting top songs", logger.Notice)
-	err := spotify.Database.CreateTopSong(newTopSongValues)
+	logger.Log("Inserting new top song record", logger.Notice)
+	err := spotify.Database.Create(&models.TopSong{}, topSongValues)
+	if err != nil {
+		return err
+	}
+
+	logger.Log("Inserting new top song data", logger.Notice)
+	err = spotify.Database.Create(&models.TopSongData{}, topSongDataValues)
 	if err != nil {
 		return err
 	}
@@ -161,28 +172,38 @@ func (spotify *Spotify) InsertTopSongs(songs map[string]TopTracksResponse, dbSon
 }
 
 func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, dbArtists []models.Artist) error {
-	newTopArtistValues := []interface{}{}
+	topArtistDataValues := []interface{}{}
+	topArtistValues := []interface{}{}
+	newTopArtist := models.NewTopArtist(spotify.UserID)
 
 	for term, resp := range songs {
 		for i, artist := range resp.Items {
 			dbArtist, exists := getArtistBySpotifyID(dbArtists, artist.ID)
-			newTopArtist := models.NewTopArtist(artist.Name, "", i+1, term, spotify.UserID)
+			newTopArtist := models.NewTopArtistData(artist.Name, "", i+1, term, newTopArtist.ID.String())
 			if exists {
 				newTopArtist.ArtistID = dbArtist.ID
 			} else {
 				logger.Log(fmt.Sprintf("Failed to attach artist ID for artist %s", artist.Name), logger.Warning)
 			}
-			newTopArtistValues = append(newTopArtistValues, newTopArtist.ToSlice()...)
+			topArtistDataValues = append(topArtistDataValues, newTopArtist.ToSlice()...)
 		}
 	}
 
-	if len(newTopArtistValues) == 0 {
+	topArtistValues = append(topArtistValues, newTopArtist.ToSlice()...)
+
+	if len(topArtistDataValues) == 0 {
 		logger.Log("syke bitch no top artist data to insert", logger.Notice)
 		return nil
 	}
 
-	logger.Log("Inserting top artists", logger.Notice)
-	err := spotify.Database.CreateTopArtist(newTopArtistValues)
+	logger.Log("Inserting new top artist record", logger.Notice)
+	err := spotify.Database.Create(&models.TopArtist{}, topArtistValues)
+	if err != nil {
+		return err
+	}
+
+	logger.Log("Inserting new top artist data", logger.Notice)
+	err = spotify.Database.Create(&models.TopArtistData{}, topArtistDataValues)
 	if err != nil {
 		return err
 	}
@@ -190,8 +211,11 @@ func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, db
 	return nil
 }
 
-func (spotify *Spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListen) error {
+func (spotify *Spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListenData) error {
+
+	newRecentListen := models.NewRecentListen(spotify.UserID)
 	recentListenValues := []interface{}{}
+	recentListenDataValues := []interface{}{}
 Outer:
 	for _, recentListen := range recents.Items {
 		for _, existingRecentListen := range existingRecentListens {
@@ -200,32 +224,39 @@ Outer:
 			}
 		}
 
-		newRecentListen := models.NewRecentListen("", spotify.UserID, recentListen.PlayedAt)
+		newRecentListenData := models.NewRecentListenData("", newRecentListen.ID.String(), recentListen.PlayedAt)
 		song, exists := getSongBySpotifyID(songs, recentListen.Track.ID)
 		if exists {
-			newRecentListen.SongID = song.ID
+			newRecentListenData.SongID = song.ID
 		} else {
 			fmt.Printf("Failed to find %s\n", recentListen.Track.ID)
 		}
-		recentListenValues = append(recentListenValues, newRecentListen.ToSlice()...)
+		recentListenDataValues = append(recentListenDataValues, newRecentListenData.ToSlice()...)
 	}
 
-	if len(recentListenValues) == 0 {
+	recentListenValues = append(recentListenValues, newRecentListen.ToSlice()...)
+
+	if len(recentListenDataValues) == 0 {
 		logger.Log("syke bitch the database already contains recent listens for this user", logger.Notice)
 		return nil
 	}
 
-	logger.Log("Inserting new recently listened to songs", logger.Notice)
-	err := spotify.Database.CreateRecentlyListened(recentListenValues)
+	logger.Log("Inserting new recently listened to record", logger.Notice)
+	err := spotify.Database.Create(&models.RecentListen{}, recentListenValues)
 	if err != nil {
 		return err
+	}
 
+	logger.Log("Inserting new recently listened to songs", logger.Notice)
+	err = spotify.Database.Create(&models.RecentListenData{}, recentListenDataValues)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedResponse) ([]models.RecentListen, error) {
+func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedResponse) ([]models.RecentListenData, error) {
 	recentPlayedAtList := []interface{}{}
 	for _, recent := range recents.Items {
 		recentPlayedAtList = append(recentPlayedAtList, recent.PlayedAt.Format(time.RFC3339))
@@ -233,15 +264,30 @@ func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedRespons
 
 	if len(recentPlayedAtList) == 0 {
 		logger.Log("syke bitch no recently played data to fetch", logger.Notice)
-		return []models.RecentListen{}, nil
+		return []models.RecentListenData{}, nil
 	}
 
-	recentListens, err := spotify.Database.FetchRecentListensByTime(recentPlayedAtList, spotify.UserID)
+	recentListens, err := spotify.Database.FetchRecentListensByUserID(spotify.UserID)
 	if err != nil {
 		return nil, err
 	}
 
-	return recentListens, nil
+	if len(recentListens) == 0 {
+		logger.Log("syke bitch we have no recently played data for this user in the database", logger.Notice)
+		return []models.RecentListenData{}, nil
+	}
+
+	recentListenIDs := []interface{}{}
+	for _, recentListen := range recentListens {
+		recentListenIDs = append(recentListenIDs, recentListen.ID.String())
+	}
+
+	recentListenData, err := spotify.Database.FetchRecentListenDataByTime(recentPlayedAtList, recentListenIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	return recentListenData, nil
 }
 
 func (spotify *Spotify) AttachTrackUUIDs(songs []models.Song, artists []models.Artist, albums []models.Album) ([]models.Song, error) {

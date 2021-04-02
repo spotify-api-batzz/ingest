@@ -16,6 +16,14 @@ type User struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
+func (r *User) TableName() string {
+	return "users"
+}
+
+func (r *User) TableColumns() []string {
+	return []string{"id", "username", "password", "spotify_id", "created_at", "updated_at"}
+}
+
 func NewUser(username string, password string, spotifyID string) User {
 	return User{
 		ID:        uuid.New().String(),

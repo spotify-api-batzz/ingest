@@ -7,6 +7,7 @@ import (
 	"spotify/utils"
 	"strings"
 
+	"github.com/batzz-00/goutils"
 	_ "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
 )
@@ -108,17 +109,31 @@ func (d *Database) FetchArtistByID(id string) (models.Artist, error) {
 	return artist, nil
 }
 
-func (d *Database) FetchRecentListensByTime(playedAts []interface{}, userID string) ([]models.RecentListen, error) {
+func (d *Database) FetchRecentListensByUserID(userID string) ([]models.RecentListen, error) {
 	recentListens := []models.RecentListen{}
-	sql := fmt.Sprintf("SELECT * FROM recent_listens WHERE user_id = $1 AND played_at IN (%s)", PrepareInStringPG(1, len(playedAts), 2))
-	vars := []interface{}{}
-	vars = append(vars, userID)
-	vars = append(vars, playedAts...)
-	err := d.DB.Select(&recentListens, sql, vars...)
+	columnNames := goutils.ColumnNamesExclusive(&models.RecentListen{})
+	tableName := (&models.RecentListen{}).TableName()
+	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1", columnNames, tableName)
+	err := d.DB.Select(&recentListens, sql, userID)
 	if err != nil {
 		return nil, err
 	}
 	return recentListens, nil
+}
+
+func (d *Database) FetchRecentListenDataByTime(playedAts []interface{}, recentListenedToIDs []interface{}) ([]models.RecentListenData, error) {
+	recentListenData := []models.RecentListenData{}
+	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenData{})
+	tableName := (&models.RecentListenData{}).TableName()
+	sql := fmt.Sprintf("SELECT %s FROM %s WHERE recent_listen_in IN (%s) AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 1), PrepareInStringPG(1, len(playedAts), len(recentListenedToIDs)))
+	vars := []interface{}{}
+	vars = append(vars, recentListenedToIDs...)
+	vars = append(vars, playedAts...)
+	err := d.DB.Select(&recentListenData, sql, vars...)
+	if err != nil {
+		return nil, err
+	}
+	return recentListenData, nil
 }
 
 func (d *Database) FetchThumbnailsByEntityID(entityIDs []interface{}) ([]models.Thumbnail, error) {
@@ -194,8 +209,30 @@ func (d *Database) CreateTopSong(topArtistValues []interface{}) error {
 }
 
 func (d *Database) CreateRecentlyListened(recentlyListenedValues []interface{}) error {
-	sql := fmt.Sprintf(`INSERT INTO recent_listens (id, song_id, user_id, played_at, created_at, updated_at) VALUES %s `, PrepareBatchValuesPG(6, len(recentlyListenedValues)/6))
+	sql := fmt.Sprintf(`INSERT INTO recent_listens (id, user_id, created_at, updated_at) VALUES %s `, PrepareBatchValuesPG(4, len(recentlyListenedValues)/4))
 	_, err := d.DB.Exec(sql, recentlyListenedValues...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Database) CreateRecentlyListenedData(recentlyListenedDataValues []interface{}) error {
+	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenData{})
+	tableName := (&models.RecentListenData{}).TableName()
+	sql := fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s `, tableName, columnNames, PrepareBatchValuesPG(len((&models.RecentListenData{}).TableColumns()), len(recentlyListenedDataValues)/len((&models.RecentListenData{}).TableColumns())))
+	_, err := d.DB.Exec(sql, recentlyListenedDataValues...)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (d *Database) Create(model goutils.Model, values []interface{}) error {
+	columnNames := goutils.ColumnNamesExclusive(model)
+	tableName := model.TableName()
+	sql := fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s `, tableName, columnNames, PrepareBatchValuesPG(len(model.TableColumns()), len(values)/len(model.TableColumns())))
+	_, err := d.DB.Exec(sql, values...)
 	if err != nil {
 		return err
 	}

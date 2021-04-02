@@ -31,6 +31,14 @@ func NewSong(name string, spotifyID string, albumID string, artistID string) Son
 	}
 }
 
+func (r *Song) TableName() string {
+	return "songs"
+}
+
+func (r *Song) TableColumns() []string {
+	return []string{"id", "spotify_id", "album_id", "artist_id", "name", "created_at", "updated_at"}
+}
+
 func (s *Song) ToSlice() []interface{} {
 	slice := make([]interface{}, 7)
 	slice[0] = s.ID

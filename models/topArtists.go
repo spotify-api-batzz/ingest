@@ -8,35 +8,34 @@ import (
 )
 
 type TopArtist struct {
-	ID       uuid.UUID `db:"id"`
-	UserID   string    `db:"user_id"`
-	ArtistID string    `db:"artist_id"`
-	Order    int       `db:"order"`
+	ID     uuid.UUID `db:"id"`
+	UserID string    `db:"user_id"`
 
-	TimePeriod string    `db:"time_period"`
-	CreatedAt  time.Time `db:"created_at"`
-	UpdatedAt  time.Time `db:"updated_at"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func NewTopArtist(name string, artistID string, order int, timePeriod string, userID string) TopArtist {
+func NewTopArtist(userID string) TopArtist {
 	return TopArtist{
-		ID:         uuid.New(),
-		ArtistID:   artistID,
-		UserID:     userID,
-		Order:      order,
-		TimePeriod: timePeriod,
+		ID:     uuid.New(),
+		UserID: userID,
 	}
 }
 
+func (r *TopArtist) TableName() string {
+	return "top_artists"
+}
+
+func (r *TopArtist) TableColumns() []string {
+	return []string{"id", "user_id", "created_at", "updated_at"}
+}
+
 func (a *TopArtist) ToSlice() []interface{} {
-	slice := make([]interface{}, 7)
+	slice := make([]interface{}, 4)
 	slice[0] = a.ID
-	slice[1] = a.ArtistID
-	slice[2] = a.Order
-	slice[3] = a.UserID
-	slice[4] = a.TimePeriod
-	slice[5] = utils.Now()
-	slice[6] = utils.Now()
+	slice[1] = a.UserID
+	slice[2] = utils.Now()
+	slice[3] = utils.Now()
 
 	return slice
 }
