@@ -59,7 +59,7 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	api := NewAPI("https://accounts.spotify.com/", os.Getenv("secret"), os.Getenv("clientID"), os.Getenv("refresh"))
+	api := NewAPI("https://accounts.spotify.com/", os.Getenv("secret"), os.Getenv("clientID"), os.Getenv(fmt.Sprintf("refresh_%s", os.Args[1])))
 
 	err = api.Refresh()
 	if err != nil {
