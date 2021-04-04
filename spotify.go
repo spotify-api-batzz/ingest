@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
-	"spotify/logger"
 	"spotify/models"
+	"spotify/utils"
 	"time"
+
+	"github.com/batzz-00/goutils/logger"
 
 	"github.com/google/uuid"
 )
@@ -12,11 +14,11 @@ import (
 type Spotify struct {
 	Database *Database
 	UserID   string
-	API      *API
+	API      SpotifyAPI
 	Times    []string
 }
 
-func newSpotify(database *Database, api *API, userID string) Spotify {
+func newSpotify(database *Database, api SpotifyAPI, userID string) Spotify {
 	return Spotify{
 		Database: database,
 		API:      api,
@@ -27,100 +29,100 @@ func newSpotify(database *Database, api *API, userID string) Spotify {
 }
 
 func (spotify *Spotify) DataInserts() error {
-	logger.Log("Attempting to fetch spotify top tracks", logger.Notice)
+	logger.Log("Attempting to fetch spotify top tracks", logger.Info)
 	songs, err := spotify.Tracks()
 	if err != nil {
 		logger.Log("Failed to fetch spotify top tracks!", logger.Error)
 		return err
 	}
 
-	logger.Log("Attempting to fetch spotify top artists", logger.Notice)
+	logger.Log("Attempting to fetch spotify top artists", logger.Info)
 	artists, err := spotify.Artists()
 	if err != nil {
 		logger.Log("Failed to fetch spotify top artists!", logger.Error)
 		return err
 	}
 
-	logger.Log("Attempting to fetch spotify recently played tracks", logger.Notice)
+	logger.Log("Attempting to fetch spotify recently played tracks", logger.Info)
 	recents, err := spotify.Recents()
 	if err != nil {
 		logger.Log("Failed to fetch spotify recently played tracks!", logger.Error)
 		return err
 	}
 
-	logger.Log("Fetching tracks from database, then API if missing", logger.Notice)
+	logger.Log("Fetching tracks from database, then API if missing", logger.Info)
 	dbSongs, err := spotify.PopulateTracks(songs, recents)
 	if err != nil {
 		logger.Log("Failed to fetch tracks from database", logger.Error)
 		return err
 	}
 
-	logger.Log("Fetching artists from database, then API if missing", logger.Notice)
+	logger.Log("Fetching artists from database, then API if missing", logger.Info)
 	dbArtists, err := spotify.PopulateArtists(songs, artists, recents)
 	if err != nil {
 		logger.Log("Failed to fetch spotify artists!", logger.Error)
 		return err
 	}
 
-	logger.Log("Fetching albums from database, then API if missing", logger.Notice)
+	logger.Log("Fetching albums from database, then API if missing", logger.Info)
 	dbAlbums, err := spotify.PopulateAlbums(songs, recents)
 	if err != nil {
 		logger.Log("Failed to fetch spotify recently played albums!", logger.Error)
 		return err
 	}
 
-	logger.Log("Inserting all relevant thumbnails into DB", logger.Notice)
+	logger.Log("Inserting all relevant thumbnails into DB", logger.Info)
 	err = spotify.InsertThumbnails(songs, recents, artists, dbArtists, dbAlbums)
 	if err != nil {
 		logger.Log("Failed to insert thumbnails!", logger.Error)
 		return err
 	}
 
-	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Notice)
+	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Info)
 	dbSongs, err = spotify.AttachTrackUUIDs(dbSongs, dbArtists, dbAlbums)
 	if err != nil {
 		logger.Log("Failed to attach and insert songs into the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Attaching appropriate UUIDs to albums to be inserted, then inserting", logger.Notice)
+	logger.Log("Attaching appropriate UUIDs to albums to be inserted, then inserting", logger.Info)
 	err = spotify.AttachAlbumUUIDs(dbAlbums, dbArtists)
 	if err != nil {
 		logger.Log("Failed to attach and insert albums into the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Artists dont need related data, simply inserting", logger.Notice)
+	logger.Log("Artists dont need related data, simply inserting", logger.Info)
 	err = spotify.InsertArtists(dbArtists)
 	if err != nil {
 		logger.Log("Failed to insert artists into the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Prefetch and insert phase complete, moving on to user data insert", logger.Notice)
+	logger.Log("Prefetch and insert phase complete, moving on to user data insert", logger.Info)
 
-	logger.Log("Fetching all existing recently listened to songs", logger.Notice)
+	logger.Log("Fetching all existing recently listened to songs", logger.Info)
 	existingRecents, err := spotify.FetchExistingRecentListens(recents)
 	if err != nil {
 		logger.Log("Failed to fetch recently listened to songs from the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Inserting all recently listened to songs", logger.Notice)
+	logger.Log("Inserting all recently listened to songs", logger.Info)
 	err = spotify.InsertRecentListens(recents, dbSongs, existingRecents)
 	if err != nil {
 		logger.Log("Failed to insert recentlistens into the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Inserting all top songs", logger.Notice)
+	logger.Log("Inserting all top songs", logger.Info)
 	err = spotify.InsertTopSongs(songs, dbSongs)
 	if err != nil {
 		logger.Log("Failed to insert top songs into the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Inserting all top artists", logger.Notice)
+	logger.Log("Inserting all top artists", logger.Info)
 	err = spotify.InsertTopArtists(artists, dbArtists)
 	if err != nil {
 		logger.Log("Failed to insert top artists into the database", logger.Error)
@@ -152,17 +154,19 @@ func (spotify *Spotify) InsertTopSongs(songs map[string]TopTracksResponse, dbSon
 	topSongValues = append(topSongValues, topSong.ToSlice()...)
 
 	if len(topSongDataValues) == 0 {
-		logger.Log("syke bitch no top song data to insert", logger.Notice)
+		logger.Log("No top song data to ingest.", logger.Info)
 		return nil
 	}
 
-	logger.Log("Inserting new top song record", logger.Notice)
+	logger.Log("Inserting new top song record", logger.Info)
+	logger.Log(fmt.Sprintf("Inserting %d top_song records", len(topSongValues)/len((&models.TopSong{}).TableColumns())), logger.Debug)
 	err := spotify.Database.Create(&models.TopSong{}, topSongValues)
 	if err != nil {
 		return err
 	}
 
-	logger.Log("Inserting new top song data", logger.Notice)
+	logger.Log("Inserting new top song data", logger.Info)
+	logger.Log(fmt.Sprintf("Inserting %d top_song_data records", len(topSongDataValues)/len((&models.TopSongData{}).TableColumns())), logger.Debug)
 	err = spotify.Database.Create(&models.TopSongData{}, topSongDataValues)
 	if err != nil {
 		return err
@@ -192,17 +196,19 @@ func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, db
 	topArtistValues = append(topArtistValues, newTopArtist.ToSlice()...)
 
 	if len(topArtistDataValues) == 0 {
-		logger.Log("syke bitch no top artist data to insert", logger.Notice)
+		logger.Log("No top artist data to ingest.", logger.Info)
 		return nil
 	}
 
-	logger.Log("Inserting new top artist record", logger.Notice)
+	logger.Log("Inserting new top artist record", logger.Info)
+	logger.Log(fmt.Sprintf("Inserting %d top_artist records", len(topArtistValues)/len((&models.TopArtist{}).TableColumns())), logger.Debug)
 	err := spotify.Database.Create(&models.TopArtist{}, topArtistValues)
 	if err != nil {
 		return err
 	}
 
-	logger.Log("Inserting new top artist data", logger.Notice)
+	logger.Log("Inserting new top artist data", logger.Info)
+	logger.Log(fmt.Sprintf("Inserting %d top_artist_data records", len(topArtistDataValues)/len((&models.TopArtistData{}).TableColumns())), logger.Debug)
 	err = spotify.Database.Create(&models.TopArtistData{}, topArtistDataValues)
 	if err != nil {
 		return err
@@ -237,17 +243,19 @@ Outer:
 	recentListenValues = append(recentListenValues, newRecentListen.ToSlice()...)
 
 	if len(recentListenDataValues) == 0 {
-		logger.Log("syke bitch the database already contains recent listens for this user", logger.Notice)
+		logger.Log("No recent listen data to ingest", logger.Info)
 		return nil
 	}
 
-	logger.Log("Inserting new recently listened to record", logger.Notice)
+	logger.Log("Inserting new recently listened to record", logger.Info)
+	logger.Log(fmt.Sprintf("Inserting %d new recent_listen records", len(recentListenValues)/len((&models.RecentListen{}).TableColumns())), logger.Debug)
 	err := spotify.Database.Create(&models.RecentListen{}, recentListenValues)
 	if err != nil {
 		return err
 	}
 
-	logger.Log("Inserting new recently listened to songs", logger.Notice)
+	logger.Log("Inserting new recently listened to songs", logger.Info)
+	logger.Log(fmt.Sprintf("Inserting %d new recent_listen_data records", len(recentListenDataValues)/len((&models.RecentListenData{}).TableColumns())), logger.Debug)
 	err = spotify.Database.Create(&models.RecentListenData{}, recentListenDataValues)
 	if err != nil {
 		return err
@@ -263,7 +271,7 @@ func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedRespons
 	}
 
 	if len(recentPlayedAtList) == 0 {
-		logger.Log("syke bitch no recently played data to fetch", logger.Notice)
+		logger.Log("User has no recently played songs", logger.Debug)
 		return []models.RecentListenData{}, nil
 	}
 
@@ -273,7 +281,7 @@ func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedRespons
 	}
 
 	if len(recentListens) == 0 {
-		logger.Log("syke bitch we have no recently played data for this user in the database", logger.Notice)
+		logger.Log("Database contains no recently listened to songs for this user", logger.Debug)
 		return []models.RecentListenData{}, nil
 	}
 
@@ -313,11 +321,11 @@ func (spotify *Spotify) AttachTrackUUIDs(songs []models.Song, artists []models.A
 	}
 
 	if len(songValues) == 0 {
-		logger.Log("syke bitch the database already contains all necessary songs", logger.Notice)
+		logger.Log("No new song data to ingest", logger.Debug)
 		return songs, nil
 	}
 
-	logger.Log("Inserting new songs", logger.Notice)
+	logger.Log(fmt.Sprintf("Inserting %d new song records", len(songValues)/len((&models.Song{}).TableColumns())), logger.Debug)
 	err := spotify.Database.CreateSong(songValues)
 	if err != nil {
 		return nil, err
@@ -336,11 +344,11 @@ func (spotify *Spotify) InsertArtists(artists []models.Artist) error {
 	}
 
 	if len(artistValues) == 0 {
-		logger.Log("syke bitch the database already contains all necessary artists", logger.Notice)
+		logger.Log("No new artist data to ingest", logger.Debug)
 		return nil
 	}
 
-	logger.Log("Inserting new artists", logger.Notice)
+	logger.Log("Inserting new artists", logger.Debug)
 	err := spotify.Database.CreateArtist(artistValues)
 	if err != nil {
 		return err
@@ -366,11 +374,11 @@ func (spotify *Spotify) AttachAlbumUUIDs(albums []models.Album, artists []models
 	}
 
 	if len(albumValues) == 0 {
-		logger.Log("syke bitch the database already contains all necessary albums", logger.Notice)
+		logger.Log("No new album data to ingest", logger.Debug)
 		return nil
 	}
 
-	logger.Log("Inserting new albums", logger.Notice)
+	logger.Log("Inserting new albums", logger.Debug)
 	err := spotify.Database.CreateAlbum(albumValues)
 	if err != nil {
 		return err
@@ -381,18 +389,18 @@ func (spotify *Spotify) AttachAlbumUUIDs(albums []models.Album, artists []models
 
 func (spotify *Spotify) PopulateTracks(songs map[string]TopTracksResponse, recents RecentlyPlayedResponse) ([]models.Song, error) {
 	// Songs to attempt to fetch from DB
-	songSpotifyIDs := []interface{}{}
+	songSpotifyIDs := utils.NewStringArgs()
 	for _, resp := range songs {
 		for _, song := range resp.Items {
-			songSpotifyIDs = append(songSpotifyIDs, song.ID)
+			songSpotifyIDs.Add(song.ID)
 		}
 	}
 
 	for _, song := range recents.Items {
-		songSpotifyIDs = append(songSpotifyIDs, song.Track.ID)
+		songSpotifyIDs.Add(song.Track.ID)
 	}
 
-	dbSongs, err := spotify.Database.FetchSongsBySpotifyID(songSpotifyIDs)
+	dbSongs, err := spotify.Database.FetchSongsBySpotifyID(songSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
 	}
@@ -400,21 +408,21 @@ func (spotify *Spotify) PopulateTracks(songs map[string]TopTracksResponse, recen
 	// Songs to attempt to fetch from API
 	songsToFetch := []string{}
 Outer:
-	for _, id := range songSpotifyIDs {
-		for _, dbSong := range dbSongs {
-			if dbSong.SpotifyID == id {
+	for id := range songSpotifyIDs.UniqueMap {
+		for _, song := range dbSongs {
+			if id == song.SpotifyID {
 				continue Outer
 			}
 		}
-		songsToFetch = append(songsToFetch, id.(string))
+		songsToFetch = append(songsToFetch, id)
 	}
 
 	if len(songsToFetch) == 0 {
-		logger.Log("Skipping querying API for tracks as database contains all necessary data", logger.Notice)
+		logger.Log("Database contains already contains all ingested song references, not querying api", logger.Debug)
 		return dbSongs, nil
 	}
 
-	apiSongs, err := spotify.API.GetTracks(songsToFetch)
+	apiSongs, err := spotify.API.TracksBySpotifyID(songsToFetch)
 	if err != nil {
 		return nil, err
 	}
@@ -428,24 +436,26 @@ Outer:
 
 func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, artists map[string]TopArtistsResponse, recents RecentlyPlayedResponse) ([]models.Artist, error) {
 	// Songs to attempt to fetch from DB
-	artistSpotifyIDs := []interface{}{}
+
+	artistSpotifyIDs := utils.NewStringArgs()
+	// artistSpotifyIDs := []interface{}{}
 	for _, resp := range songs {
 		for _, song := range resp.Items {
-			artistSpotifyIDs = append(artistSpotifyIDs, song.Artists[0].ID)
+			artistSpotifyIDs.Add(song.Artists[0].ID)
 		}
 	}
 
 	for _, resp := range artists {
 		for _, artist := range resp.Items {
-			artistSpotifyIDs = append(artistSpotifyIDs, artist.ID)
+			artistSpotifyIDs.Add(artist.ID)
 		}
 	}
 
 	for _, song := range recents.Items {
-		artistSpotifyIDs = append(artistSpotifyIDs, song.Track.Album.Artists[0].ID)
+		artistSpotifyIDs.Add(song.Track.Album.Artists[0].ID)
 	}
 
-	dbArtists, err := spotify.Database.FetchArtistsBySpotifyID(artistSpotifyIDs)
+	dbArtists, err := spotify.Database.FetchArtistsBySpotifyID(artistSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
 	}
@@ -453,21 +463,21 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 	// Songs to attempt to fetch from API
 	artistsToFetch := []string{}
 Outer:
-	for _, id := range artistSpotifyIDs {
+	for id := range artistSpotifyIDs.UniqueMap {
 		for _, dbArtist := range dbArtists {
 			if dbArtist.SpotifyID == id {
 				continue Outer
 			}
 		}
-		artistsToFetch = append(artistsToFetch, id.(string))
+		artistsToFetch = append(artistsToFetch, id)
 	}
 
 	if len(artistsToFetch) == 0 {
-		logger.Log("Skipping querying API for tracks as database contains all necessary data", logger.Notice)
+		logger.Log("Database contains already contains all ingested artist references, not querying api", logger.Debug)
 		return dbArtists, nil
 	}
 
-	apiArtists, err := spotify.API.GetArtists(artistsToFetch)
+	apiArtists, err := spotify.API.ArtistsBySpotifyID(artistsToFetch)
 	if err != nil {
 		return nil, err
 	}
@@ -481,7 +491,7 @@ Outer:
 
 // too many args should use struct tbh
 func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, recents RecentlyPlayedResponse, artists map[string]TopArtistsResponse, dbArtists []models.Artist, dbAlbums []models.Album) error {
-	thumbnails := []models.Thumbnail{}
+	thumbnails := make(map[string]models.Thumbnail)
 	for _, resp := range songs {
 		for _, song := range resp.Items {
 			dbAlbum, exists := getAlbumBySpotifyID(dbAlbums, song.Album.ID)
@@ -493,7 +503,7 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 				if exists {
 					thumbnail.EntityID = dbAlbum.ID
 				}
-				thumbnails = append(thumbnails, thumbnail)
+				thumbnails[thumbnail.UniqueID()] = thumbnail
 			}
 		}
 	}
@@ -509,7 +519,7 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 				if exists {
 					thumbnail.EntityID = dbArtist.ID
 				}
-				thumbnails = append(thumbnails, thumbnail)
+				thumbnails[thumbnail.UniqueID()] = thumbnail
 			}
 		}
 	}
@@ -524,11 +534,11 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 			if exists {
 				thumbnail.EntityID = dbAlbum.ID
 			}
-			thumbnails = append(thumbnails, thumbnail)
+			thumbnails[thumbnail.UniqueID()] = thumbnail
 		}
 	}
 
-	entityIDs := []interface{}{}
+	entityIDs := make([]interface{}, len(thumbnails))
 	for _, thumbnail := range thumbnails {
 		entityIDs = append(entityIDs, thumbnail.EntityID)
 	}
@@ -540,17 +550,18 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 
 	thumbnailsToInsert := []interface{}{}
 	for _, thumbnail := range thumbnails {
-		_, exists := getThumbnailByEntityID(dbThumbnails, thumbnail.EntityID)
+		_, exists := getThumbnailByEntityIDAndDimensions(dbThumbnails, thumbnail.EntityID, thumbnail.Height, thumbnail.Width)
 		if !exists {
 			thumbnailsToInsert = append(thumbnailsToInsert, thumbnail.ToSlice()...)
 		}
 	}
 
 	if len(thumbnailsToInsert) == 0 {
-		logger.Log("syke bitch the database already contains all necessary thumbnails", logger.Notice)
+		logger.Log("No new thumbnails to ingest", logger.Debug)
 		return nil
 	}
 
+	logger.Log(fmt.Sprintf("Inserting %d new thumbnail records", len(thumbnailsToInsert)), logger.Debug)
 	err = spotify.Database.CreateThumbnail(thumbnailsToInsert)
 	if err != nil {
 		return err
@@ -559,19 +570,18 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 }
 
 func (spotify *Spotify) PopulateAlbums(songs map[string]TopTracksResponse, recents RecentlyPlayedResponse) ([]models.Album, error) {
-	// Songs to attempt to fetch from DB
-	albumSpotifyIDs := []interface{}{}
+	albumSpotifyIDs := utils.NewStringArgs()
 	for _, resp := range songs {
 		for _, song := range resp.Items {
-			albumSpotifyIDs = append(albumSpotifyIDs, song.Album.ID)
+			albumSpotifyIDs.Add(song.Album.ID)
 		}
 	}
 
 	for _, song := range recents.Items {
-		albumSpotifyIDs = append(albumSpotifyIDs, song.Track.Album.ID)
+		albumSpotifyIDs.Add(song.Track.Album.ID)
 	}
 
-	dbAlbums, err := spotify.Database.FetchAlbumsBySpotifyID(albumSpotifyIDs)
+	dbAlbums, err := spotify.Database.FetchAlbumsBySpotifyID(albumSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
 	}
@@ -579,21 +589,21 @@ func (spotify *Spotify) PopulateAlbums(songs map[string]TopTracksResponse, recen
 	// Songs to attempt to fetch from API
 	albumsToFetch := []string{}
 Outer:
-	for _, id := range albumSpotifyIDs {
+	for id := range albumSpotifyIDs.UniqueMap {
 		for _, dbAlbum := range dbAlbums {
 			if dbAlbum.SpotifyID == id {
 				continue Outer
 			}
 		}
-		albumsToFetch = append(albumsToFetch, id.(string))
+		albumsToFetch = append(albumsToFetch, id)
 	}
 
 	if len(albumsToFetch) == 0 {
-		logger.Log("Skipping querying API for albums as database contains all necessary data", logger.Notice)
+		logger.Log("Database contains already contains all ingested album references, not querying api", logger.Debug)
 		return dbAlbums, nil
 	}
 
-	apiAlbums, err := spotify.API.GetAlbums(albumsToFetch)
+	apiAlbums, err := spotify.API.AlbumsBySpotifyID(albumsToFetch)
 	if err != nil {
 		return nil, err
 	}
@@ -609,8 +619,8 @@ func (spotify *Spotify) Artists() (map[string]TopArtistsResponse, error) {
 	artistsResp := make(map[string]TopArtistsResponse)
 
 	for _, period := range spotify.Times {
-		logger.Log(fmt.Sprintf("Processing %s_term time range for artists endpoint", period), logger.Notice)
-		artists, err := spotify.API.GetTopArtists(period + "_term")
+		logger.Log(fmt.Sprintf("Processing %s_term time range for artists endpoint", period), logger.Debug)
+		artists, err := spotify.API.TopArtistsForUser(period + "_term")
 		if err != nil {
 			return nil, err
 		}
@@ -620,7 +630,7 @@ func (spotify *Spotify) Artists() (map[string]TopArtistsResponse, error) {
 }
 
 func (spotify *Spotify) Recents() (RecentlyPlayedResponse, error) {
-	recentlyPlayed, err := spotify.API.GetRecentlyPlayed()
+	recentlyPlayed, err := spotify.API.RecentlyPlayedByUser()
 	if err != nil {
 		return RecentlyPlayedResponse{}, err
 	}
@@ -632,8 +642,8 @@ func (spotify *Spotify) Tracks() (map[string]TopTracksResponse, error) {
 	topTrackResp := make(map[string]TopTracksResponse)
 
 	for _, period := range spotify.Times {
-		logger.Log(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period), logger.Notice)
-		tracks, err := spotify.API.GetTopTracks(period + "_term")
+		logger.Log(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period), logger.Debug)
+		tracks, err := spotify.API.TopTracksForUser(period + "_term")
 		if err != nil {
 			return nil, err
 		}
@@ -670,9 +680,9 @@ func getAlbumBySpotifyID(albums []models.Album, spotifyID string) (models.Album,
 	return models.Album{}, false
 }
 
-func getThumbnailByEntityID(thumbnails []models.Thumbnail, entityID string) (models.Thumbnail, bool) {
+func getThumbnailByEntityIDAndDimensions(thumbnails []models.Thumbnail, entityID string, entityHeight int, entityWidth int) (models.Thumbnail, bool) {
 	for _, thumbnail := range thumbnails {
-		if thumbnail.EntityID == entityID {
+		if thumbnail.EntityID == entityID && thumbnail.Height == entityHeight && thumbnail.Width == entityWidth {
 			return thumbnail, true
 		}
 	}

@@ -1,13 +1,14 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
-	"spotify/logger"
+
 	"spotify/models"
 	"spotify/utils"
+
+	"github.com/batzz-00/goutils/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -22,11 +23,15 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	api := NewAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", os.Args[1])))
+	logger.Setup(logger.Info, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
 
-	err = api.Refresh()
+	api := NewSpotifyAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", os.Args[1])), NewAPIOptions(3))
+
+	logger.Log(fmt.Sprintf("Beggining spotify data ingest, user id %s.", os.Args[1]), logger.Info)
+
+	err = Refresh(api)
 	if err != nil {
-		logger.Log("Failed to refresh API token!", logger.Error)
+		logger.Log(err.Error(), logger.Error)
 		panic(err)
 	}
 
@@ -43,13 +48,14 @@ func main() {
 		panic(err)
 	}
 
+	logger.Log("Handling base user data", logger.Info)
 	user, err := HandleBaseUsers(database, os.Args[1], me)
 	if err != nil {
 		logger.Log("Failed when handling base user routine", logger.Error)
 		panic(err)
 	}
 
-	spotify := newSpotify(&database, &api, user.ID)
+	spotify := newSpotify(&database, api, user.ID)
 
 	err = spotify.DataInserts()
 	if err != nil {
@@ -58,7 +64,6 @@ func main() {
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
-	logger.Log("Handling base user data", logger.Notice)
 	baseUsers := []interface{}{"bungusbuster", "anneteresa-gb"}
 	users, err := db.FetchUsersByNames(baseUsers)
 	if err != nil {
@@ -82,7 +87,7 @@ Outer:
 	}
 
 	if len(userValues) == 0 {
-		logger.Log("syke bitch the database already contains all necessary users", logger.Notice)
+		logger.Log("Not inserting users, database is already populated.", logger.Debug)
 		return userToReturn, nil
 	}
 
@@ -92,8 +97,4 @@ Outer:
 	}
 
 	return userToReturn, nil
-}
-
-func BasicAuth(clientID string, clientSecret string) string {
-	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", clientID, clientSecret))))
 }

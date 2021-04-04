@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"spotify/utils"
 	"time"
 
@@ -49,4 +50,8 @@ func (t *Thumbnail) ToSlice() []interface{} {
 	slice[7] = utils.Now()
 
 	return slice
+}
+
+func (r *Thumbnail) UniqueID() string {
+	return fmt.Sprintf("%s-%d-%d", r.EntityID, r.Width, r.Height)
 }

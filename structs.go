@@ -13,16 +13,12 @@ type MeResponse struct {
 		Href  interface{} `json:"href"`
 		Total int         `json:"total"`
 	} `json:"followers"`
-	Href   string `json:"href"`
-	ID     string `json:"id"`
-	Images []struct {
-		Height interface{} `json:"height"`
-		URL    string      `json:"url"`
-		Width  interface{} `json:"width"`
-	} `json:"images"`
-	Product string `json:"product"`
-	Type    string `json:"type"`
-	URI     string `json:"uri"`
+	Href    string  `json:"href"`
+	ID      string  `json:"id"`
+	Images  []Image `json:"images"`
+	Product string  `json:"product"`
+	Type    string  `json:"type"`
+	URI     string  `json:"uri"`
 }
 
 type RecentlyPlayedResponse struct {
@@ -44,19 +40,15 @@ type RecentlyPlayedResponse struct {
 				ExternalUrls     struct {
 					Spotify string `json:"spotify"`
 				} `json:"external_urls"`
-				Href   string `json:"href"`
-				ID     string `json:"id"`
-				Images []struct {
-					Height int    `json:"height"`
-					URL    string `json:"url"`
-					Width  int    `json:"width"`
-				} `json:"images"`
-				Name                 string `json:"name"`
-				ReleaseDate          string `json:"release_date"`
-				ReleaseDatePrecision string `json:"release_date_precision"`
-				TotalTracks          int    `json:"total_tracks"`
-				Type                 string `json:"type"`
-				URI                  string `json:"uri"`
+				Href                 string  `json:"href"`
+				ID                   string  `json:"id"`
+				Images               []Image `json:"images"`
+				Name                 string  `json:"name"`
+				ReleaseDate          string  `json:"release_date"`
+				ReleaseDatePrecision string  `json:"release_date_precision"`
+				TotalTracks          int     `json:"total_tracks"`
+				Type                 string  `json:"type"`
+				URI                  string  `json:"uri"`
 			} `json:"album"`
 			Artists []struct {
 				ExternalUrls struct {
@@ -125,18 +117,14 @@ type Artist struct {
 		Href  interface{} `json:"href"`
 		Total int         `json:"total"`
 	} `json:"followers"`
-	Genres []string `json:"genres"`
-	Href   string   `json:"href"`
-	ID     string   `json:"id"`
-	Images []struct {
-		Height int    `json:"height"`
-		URL    string `json:"url"`
-		Width  int    `json:"width"`
-	} `json:"images"`
-	Name       string `json:"name"`
-	Popularity int    `json:"popularity"`
-	Type       string `json:"type"`
-	URI        string `json:"uri"`
+	Genres     []string `json:"genres"`
+	Href       string   `json:"href"`
+	ID         string   `json:"id"`
+	Images     []Image  `json:"images"`
+	Name       string   `json:"name"`
+	Popularity int      `json:"popularity"`
+	Type       string   `json:"type"`
+	URI        string   `json:"uri"`
 }
 
 type TopTracksResponse struct {
@@ -154,29 +142,13 @@ type TracksResponse struct {
 }
 
 type ArtistsResponse struct {
-	Artists []Artists `json:"artists"`
+	Artists []Artist `json:"artists"`
 }
 
-type Artists struct {
-	ExternalUrls struct {
-		Spotify string `json:"spotify"`
-	} `json:"external_urls"`
-	Followers struct {
-		Href  interface{} `json:"href"`
-		Total int         `json:"total"`
-	} `json:"followers"`
-	Genres []string `json:"genres"`
-	Href   string   `json:"href"`
-	ID     string   `json:"id"`
-	Images []struct {
-		Height int    `json:"height"`
-		URL    string `json:"url"`
-		Width  int    `json:"width"`
-	} `json:"images"`
-	Name       string `json:"name"`
-	Popularity int    `json:"popularity"`
-	Type       string `json:"type"`
-	URI        string `json:"uri"`
+type Image struct {
+	Height int    `json:"height"`
+	URL    string `json:"url"`
+	Width  int    `json:"width"`
 }
 
 type Song struct {
@@ -196,19 +168,15 @@ type Song struct {
 		ExternalUrls     struct {
 			Spotify string `json:"spotify"`
 		} `json:"external_urls"`
-		Href   string `json:"href"`
-		ID     string `json:"id"`
-		Images []struct {
-			Height int    `json:"height"`
-			URL    string `json:"url"`
-			Width  int    `json:"width"`
-		} `json:"images"`
-		Name                 string `json:"name"`
-		ReleaseDate          string `json:"release_date"`
-		ReleaseDatePrecision string `json:"release_date_precision"`
-		TotalTracks          int    `json:"total_tracks"`
-		Type                 string `json:"type"`
-		URI                  string `json:"uri"`
+		Href                 string  `json:"href"`
+		ID                   string  `json:"id"`
+		Images               []Image `json:"images"`
+		Name                 string  `json:"name"`
+		ReleaseDate          string  `json:"release_date"`
+		ReleaseDatePrecision string  `json:"release_date_precision"`
+		TotalTracks          int     `json:"total_tracks"`
+		Type                 string  `json:"type"`
+		URI                  string  `json:"uri"`
 	} `json:"album"`
 	Artists []struct {
 		ExternalUrls struct {
@@ -268,18 +236,14 @@ type Album struct {
 	ExternalUrls struct {
 		Spotify string `json:"spotify"`
 	} `json:"external_urls"`
-	Genres []interface{} `json:"genres"`
-	Href   string        `json:"href"`
-	ID     string        `json:"id"`
-	Images []struct {
-		Height int    `json:"height"`
-		URL    string `json:"url"`
-		Width  int    `json:"width"`
-	} `json:"images"`
-	Name                 string `json:"name"`
-	Popularity           int    `json:"popularity"`
-	ReleaseDate          string `json:"release_date"`
-	ReleaseDatePrecision string `json:"release_date_precision"`
+	Genres               []interface{} `json:"genres"`
+	Href                 string        `json:"href"`
+	ID                   string        `json:"id"`
+	Images               []Image       `json:"images"`
+	Name                 string        `json:"name"`
+	Popularity           int           `json:"popularity"`
+	ReleaseDate          string        `json:"release_date"`
+	ReleaseDatePrecision string        `json:"release_date_precision"`
 	Tracks               struct {
 		Href  string `json:"href"`
 		Items []struct {

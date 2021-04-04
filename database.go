@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"spotify/logger"
 	"spotify/models"
 	"spotify/utils"
 	"strings"
+
+	"github.com/batzz-00/goutils/logger"
 
 	"github.com/batzz-00/goutils"
 	_ "github.com/jackc/pgx/v4/stdlib"
@@ -127,7 +128,6 @@ func (d *Database) FetchRecentListenDataByTime(playedAts []interface{}, recentLi
 	tableName := (&models.RecentListenData{}).TableName()
 	sql := fmt.Sprintf("SELECT %s FROM %s WHERE recent_listen_id IN (%s) AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 1), PrepareInStringPG(1, len(playedAts), 1+len(recentListenedToIDs)))
 	vars := []interface{}{}
-	fmt.Println(len(recentListenedToIDs))
 	vars = append(vars, recentListenedToIDs...)
 	vars = append(vars, playedAts...)
 	err := d.DB.Select(&recentListenData, sql, vars...)
