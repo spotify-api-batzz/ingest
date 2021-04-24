@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
-	"os"
 
 	"spotify/models"
 	"spotify/utils"
@@ -13,17 +13,32 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func parseArgs() {
-	userid := flag.String("word", "foo", "Space delimited list of usernames to fetch from the api")
-	instructions := flag.String("-a", "foo", "Space delimited list of usernames to fetch from the api")
-	instructions := flag.String("-t", "foo", "Space delimited list of usernames to fetch from the api")
-	instructions := flag.String("-r", "foo", "Space delimited list of usernames to fetch from the api")
+type args struct {
+	UserID  string
+	Options SpotifyIngestOptions
+}
+
+func parseArgs() SpotifyIngestOptions {
+	recentListen := flag.Bool("r", false, "Parse and ingest user data regarding a users recently listened tracks")
+	topSongs := flag.Bool("t", false, "Parse and ingest user data regarding a users top songs")
+	topArtists := flag.Bool("a", false, "Parse and ingest user data regarding a users top artists")
+	user := flag.String("u", "", "Username to query the spotify API for, must have relevant refresh_token in env")
+	flag.Parse()
+
+	if *user == "" {
+		log.Fatalf("UserID must be specified!")
+	}
+
+	return SpotifyIngestOptions{
+		RecentListen: *recentListen,
+		TopSongs:     *topSongs,
+		TopArtists:   *topArtists,
+		UserID:       *user,
+	}
 }
 
 func main() {
-	if len(os.Args) == 1 {
-		panic("You must specify a userID for your first command line arg!")
-	}
+	args := parseArgs()
 
 	err := godotenv.Load()
 	if err != nil {
@@ -32,9 +47,9 @@ func main() {
 
 	logger.Setup(logger.Debug, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
 
-	api := NewSpotifyAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", os.Args[1])), NewAPIOptions(3))
+	api := NewSpotifyAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", args.UserID)), NewAPIOptions(3))
 
-	logger.Log(fmt.Sprintf("Beginning spotify data ingest, user id %s.", os.Args[1]), logger.Info)
+	logger.Log(fmt.Sprintf("Beginning spotify data ingest, user id %s.", args.UserID), logger.Info)
 
 	err = Refresh(api)
 	if err != nil {
@@ -56,15 +71,15 @@ func main() {
 	}
 
 	logger.Log("Handling base user data", logger.Info)
-	user, err := HandleBaseUsers(database, os.Args[1], me)
+	user, err := HandleBaseUsers(database, args.UserID, me)
 	if err != nil {
 		logger.Log("Failed when handling base user routine", logger.Error)
 		panic(err)
 	}
 
-	spotify := newSpotify(&database, api, user.ID)
+	spotify := newSpotify(&database, api, user.ID, args)
 
-	err = spotify.DataInserts()
+	err = spotify.Ingest()
 	if err != nil {
 		panic(err)
 	}

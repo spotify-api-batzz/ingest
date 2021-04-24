@@ -11,122 +11,195 @@ import (
 	"github.com/google/uuid"
 )
 
+type SpotifyIngestOptions struct {
+	RecentListen bool
+	TopSongs     bool
+	TopArtists   bool
+	UserID       string
+}
+
 type Spotify struct {
 	Database *Database
-	UserID   string
+	Options  SpotifyIngestOptions
 	API      SpotifyAPI
 	Times    []string
 }
 
-func newSpotify(database *Database, api SpotifyAPI, userID string) Spotify {
+type APIData struct {
+	Songs   map[string]TopTracksResponse
+	Artists map[string]TopArtistsResponse
+	Recents RecentlyPlayedResponse
+}
+
+type DBData struct {
+	Songs             []models.Song
+	Albums            []models.Album
+	Artists           []models.Artist
+	RecentListensData []models.RecentListenData
+}
+
+func newSpotify(database *Database, api SpotifyAPI, userID string, options SpotifyIngestOptions) Spotify {
 	return Spotify{
 		Database: database,
 		API:      api,
 
-		Times:  []string{"short", "medium", "long"},
-		UserID: userID,
+		Times:   []string{"short", "medium", "long"},
+		Options: options,
 	}
 }
-
-func (spotify *Spotify) DataInserts() error {
-	logger.Log("Attempting to fetch spotify top tracks", logger.Info)
-	songs, err := spotify.Tracks()
+func (spotify *Spotify) Ingest() error {
+	logger.Log("Fetching user data from spotify API", logger.Info)
+	APIData, err := spotify.FetchAPIData()
 	if err != nil {
-		logger.Log("Failed to fetch spotify top tracks!", logger.Error)
 		return err
 	}
 
-	logger.Log("Attempting to fetch spotify top artists", logger.Info)
-	artists, err := spotify.Artists()
+	logger.Log("Fetching related data for songs, albums etc from database and then the spotify API if we don't already have it", logger.Info)
+	relatedData, err := spotify.FetchRelated(APIData)
 	if err != nil {
-		logger.Log("Failed to fetch spotify top artists!", logger.Error)
 		return err
 	}
 
-	logger.Log("Attempting to fetch spotify recently played tracks", logger.Info)
-	recents, err := spotify.Recents()
+	logger.Log("Attaching appropriate UUIDs based on spotify ID, and inserting any missed data freshly gathered from spotify API", logger.Info)
+	relatedData, err = spotify.AttachAndInsertFreshData(APIData, relatedData)
 	if err != nil {
-		logger.Log("Failed to fetch spotify recently played tracks!", logger.Error)
 		return err
 	}
-
-	logger.Log("Fetching tracks from database, then API if missing", logger.Info)
-	dbSongs, err := spotify.PopulateTracks(songs, recents)
-	if err != nil {
-		logger.Log("Failed to fetch tracks from database", logger.Error)
-		return err
-	}
-
-	logger.Log("Fetching artists from database, then API if missing", logger.Info)
-	dbArtists, err := spotify.PopulateArtists(songs, artists, recents)
-	if err != nil {
-		logger.Log("Failed to fetch spotify artists!", logger.Error)
-		return err
-	}
-
-	logger.Log("Fetching albums from database, then API if missing", logger.Info)
-	dbAlbums, err := spotify.PopulateAlbums(songs, recents)
-	if err != nil {
-		logger.Log("Failed to fetch spotify recently played albums!", logger.Error)
-		return err
-	}
-
-	logger.Log("Inserting all relevant thumbnails into DB", logger.Info)
-	err = spotify.InsertThumbnails(songs, recents, artists, dbArtists, dbAlbums)
-	if err != nil {
-		logger.Log("Failed to insert thumbnails!", logger.Error)
-		return err
-	}
-
-	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Info)
-	dbSongs, err = spotify.AttachTrackUUIDs(dbSongs, dbArtists, dbAlbums)
-	if err != nil {
-		logger.Log("Failed to attach and insert songs into the database", logger.Error)
-		return err
-	}
-
-	logger.Log("Attaching appropriate UUIDs to albums to be inserted, then inserting", logger.Info)
-	err = spotify.AttachAlbumUUIDs(dbAlbums, dbArtists)
-	if err != nil {
-		logger.Log("Failed to attach and insert albums into the database", logger.Error)
-		return err
-	}
-
-	logger.Log("Artists dont need related data, simply inserting", logger.Info)
-	err = spotify.InsertArtists(dbArtists)
-	if err != nil {
-		logger.Log("Failed to insert artists into the database", logger.Error)
-		return err
-	}
-
-	logger.Log("Prefetch and insert phase complete, moving on to user data insert", logger.Info)
 
 	logger.Log("Fetching all existing recently listened to songs", logger.Info)
-	existingRecents, err := spotify.FetchExistingRecentListens(recents)
+	relatedData.RecentListensData, err = spotify.FetchExistingRecentListens(APIData.Recents)
 	if err != nil {
 		logger.Log("Failed to fetch recently listened to songs from the database", logger.Error)
 		return err
 	}
 
-	logger.Log("Inserting all recently listened to songs", logger.Info)
-	err = spotify.InsertRecentListens(recents, dbSongs, existingRecents)
+	logger.Log("Prefetch and insert phase complete, moving on to user data insert", logger.Info)
+	err = spotify.InsertUserData(APIData, relatedData)
 	if err != nil {
-		logger.Log("Failed to insert recentlistens into the database", logger.Error)
+		logger.Log("Failed to insert user data", logger.Error)
 		return err
 	}
 
-	logger.Log("Inserting all top songs", logger.Info)
-	err = spotify.InsertTopSongs(songs, dbSongs)
+	return nil
+}
+
+func (spotify *Spotify) FetchAPIData() (APIData, error) {
+	logger.Log("Attempting to fetch users top tracks", logger.Info)
+	songs, err := spotify.Tracks()
 	if err != nil {
-		logger.Log("Failed to insert top songs into the database", logger.Error)
-		return err
+		logger.Log("Failed to fetch users top tracks!", logger.Error)
+		return APIData{}, err
 	}
 
-	logger.Log("Inserting all top artists", logger.Info)
-	err = spotify.InsertTopArtists(artists, dbArtists)
+	logger.Log("Attempting to fetch users top artists", logger.Info)
+	artists, err := spotify.Artists()
 	if err != nil {
-		logger.Log("Failed to insert top artists into the database", logger.Error)
-		return err
+		logger.Log("Failed to fetch users top artists!", logger.Error)
+		return APIData{}, err
+	}
+
+	logger.Log("Attempting to fetch users recently played tracks", logger.Info)
+	recents, err := spotify.Recents()
+	if err != nil {
+		logger.Log("Failed to fetch users recently played tracks!", logger.Error)
+		return APIData{}, err
+	}
+
+	return APIData{
+		Songs:   songs,
+		Artists: artists,
+		Recents: recents,
+	}, nil
+}
+
+func (spotify *Spotify) FetchRelated(APIData APIData) (DBData, error) {
+	logger.Log("Fetching tracks from database, then API if missing", logger.Info)
+	dbSongs, err := spotify.PopulateTracks(APIData.Songs, APIData.Recents)
+	if err != nil {
+		logger.Log("Failed to fetch tracks from database", logger.Error)
+		return DBData{}, err
+	}
+
+	logger.Log("Fetching artists from database, then API if missing", logger.Info)
+	dbArtists, err := spotify.PopulateArtists(APIData.Songs, APIData.Artists, APIData.Recents)
+	if err != nil {
+		logger.Log("Failed to fetch spotify artists!", logger.Error)
+		return DBData{}, err
+	}
+
+	logger.Log("Fetching albums from database, then API if missing", logger.Info)
+	dbAlbums, err := spotify.PopulateAlbums(APIData.Songs, APIData.Recents)
+	if err != nil {
+		logger.Log("Failed to fetch spotify recently played albums!", logger.Error)
+		return DBData{}, err
+	}
+
+	return DBData{
+		Songs:   dbSongs,
+		Artists: dbArtists,
+		Albums:  dbAlbums,
+	}, err
+}
+
+func (spotify *Spotify) AttachAndInsertFreshData(APIData APIData, dbData DBData) (DBData, error) {
+	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Info)
+	dbSongs, err := spotify.AttachTrackUUIDs(dbData.Songs, dbData.Artists, dbData.Albums)
+	if err != nil {
+		logger.Log("Failed to attach and insert songs into the database", logger.Error)
+		return dbData, err
+	}
+	dbData.Songs = dbSongs
+
+	logger.Log("Attaching appropriate UUIDs to albums to be inserted, then inserting", logger.Info)
+	err = spotify.AttachAlbumUUIDs(dbData.Albums, dbData.Artists)
+	if err != nil {
+		logger.Log("Failed to attach and insert albums into the database", logger.Error)
+		return dbData, err
+	}
+
+	logger.Log("Inserting all relevant thumbnails into DB", logger.Info)
+	err = spotify.InsertThumbnails(APIData.Songs, APIData.Recents, APIData.Artists, dbData.Artists, dbData.Albums)
+	if err != nil {
+		logger.Log("Failed to insert thumbnails!", logger.Error)
+		return dbData, err
+	}
+
+	logger.Log("Artists dont need related data, simply inserting", logger.Info)
+	err = spotify.InsertArtists(dbData.Artists)
+	if err != nil {
+		logger.Log("Failed to insert artists into the database", logger.Error)
+		return dbData, err
+	}
+	return dbData, nil
+}
+
+func (spotify *Spotify) InsertUserData(APIData APIData, dbData DBData) error {
+
+	if spotify.Options.RecentListen {
+		logger.Log("Inserting all recently listened to songs", logger.Info)
+		err := spotify.InsertRecentListens(APIData.Recents, dbData.Songs, dbData.RecentListensData)
+		if err != nil {
+			logger.Log("Failed to insert recentlistens into the database", logger.Error)
+			return err
+		}
+	}
+
+	if spotify.Options.TopSongs {
+		logger.Log("Inserting all top songs", logger.Info)
+		err := spotify.InsertTopSongs(APIData.Songs, dbData.Songs)
+		if err != nil {
+			logger.Log("Failed to insert top songs into the database", logger.Error)
+			return err
+		}
+	}
+
+	if spotify.Options.TopSongs {
+		logger.Log("Inserting all top artists", logger.Info)
+		err := spotify.InsertTopArtists(APIData.Artists, dbData.Artists)
+		if err != nil {
+			logger.Log("Failed to insert top artists into the database", logger.Error)
+			return err
+		}
 	}
 
 	return nil
@@ -136,7 +209,7 @@ func (spotify *Spotify) InsertTopSongs(songs map[string]TopTracksResponse, dbSon
 	topSongDataValues := []interface{}{}
 	topSongValues := []interface{}{}
 
-	topSong := models.NewTopSong(spotify.UserID)
+	topSong := models.NewTopSong(spotify.Options.UserID)
 
 	for term, resp := range songs {
 		for i, song := range resp.Items {
@@ -178,7 +251,7 @@ func (spotify *Spotify) InsertTopSongs(songs map[string]TopTracksResponse, dbSon
 func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, dbArtists []models.Artist) error {
 	topArtistDataValues := []interface{}{}
 	topArtistValues := []interface{}{}
-	newTopArtist := models.NewTopArtist(spotify.UserID)
+	newTopArtist := models.NewTopArtist(spotify.Options.UserID)
 
 	for term, resp := range songs {
 		for i, artist := range resp.Items {
@@ -219,7 +292,7 @@ func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, db
 
 func (spotify *Spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListenData) error {
 
-	newRecentListen := models.NewRecentListen(spotify.UserID)
+	newRecentListen := models.NewRecentListen(spotify.Options.UserID)
 	recentListenValues := []interface{}{}
 	recentListenDataValues := []interface{}{}
 Outer:
@@ -275,7 +348,7 @@ func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedRespons
 		return []models.RecentListenData{}, nil
 	}
 
-	recentListens, err := spotify.Database.FetchRecentListensByUserID(spotify.UserID)
+	recentListens, err := spotify.Database.FetchRecentListensByUserID(spotify.Options.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -456,7 +529,7 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 		artistSpotifyIDs.Add(song.Track.Album.Artists[0].ID)
 	}
 
-	logger.Log(fmt.Sprintf("Querying database for %d artists", len(albumSpotifyIDs.Args())), logger.Debug)
+	logger.Log(fmt.Sprintf("Querying database for %d artists", len(artistSpotifyIDs.Args())), logger.Debug)
 	dbArtists, err := spotify.Database.FetchArtistsBySpotifyID(artistSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
