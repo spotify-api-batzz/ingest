@@ -13,6 +13,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func parseArgs() {
+	userid := flag.String("word", "foo", "Space delimited list of usernames to fetch from the api")
+	instructions := flag.String("-a", "foo", "Space delimited list of usernames to fetch from the api")
+	instructions := flag.String("-t", "foo", "Space delimited list of usernames to fetch from the api")
+	instructions := flag.String("-r", "foo", "Space delimited list of usernames to fetch from the api")
+}
+
 func main() {
 	if len(os.Args) == 1 {
 		panic("You must specify a userID for your first command line arg!")
@@ -23,11 +30,11 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	logger.Setup(logger.Info, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
+	logger.Setup(logger.Debug, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
 
 	api := NewSpotifyAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", os.Args[1])), NewAPIOptions(3))
 
-	logger.Log(fmt.Sprintf("Beggining spotify data ingest, user id %s.", os.Args[1]), logger.Info)
+	logger.Log(fmt.Sprintf("Beginning spotify data ingest, user id %s.", os.Args[1]), logger.Info)
 
 	err = Refresh(api)
 	if err != nil {

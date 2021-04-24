@@ -400,6 +400,7 @@ func (spotify *Spotify) PopulateTracks(songs map[string]TopTracksResponse, recen
 		songSpotifyIDs.Add(song.Track.ID)
 	}
 
+	logger.Log(fmt.Sprintf("Querying database for %d songs", len(songSpotifyIDs.Args())), logger.Debug)
 	dbSongs, err := spotify.Database.FetchSongsBySpotifyID(songSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
@@ -455,6 +456,7 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 		artistSpotifyIDs.Add(song.Track.Album.Artists[0].ID)
 	}
 
+	logger.Log(fmt.Sprintf("Querying database for %d artists", len(albumSpotifyIDs.Args())), logger.Debug)
 	dbArtists, err := spotify.Database.FetchArtistsBySpotifyID(artistSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
@@ -581,6 +583,7 @@ func (spotify *Spotify) PopulateAlbums(songs map[string]TopTracksResponse, recen
 		albumSpotifyIDs.Add(song.Track.Album.ID)
 	}
 
+	logger.Log(fmt.Sprintf("Querying database for %d albums", len(albumSpotifyIDs.Args())), logger.Debug)
 	dbAlbums, err := spotify.Database.FetchAlbumsBySpotifyID(albumSpotifyIDs.Args())
 	if err != nil {
 		return nil, err
