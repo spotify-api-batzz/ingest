@@ -142,13 +142,12 @@ func (spotify *Spotify) FetchRelated(APIData APIData) (DBData, error) {
 }
 
 func (spotify *Spotify) AttachAndInsertFreshData(APIData APIData, dbData DBData) (DBData, error) {
-	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Info)
-	dbSongs, err := spotify.AttachTrackUUIDs(dbData.Songs, dbData.Artists, dbData.Albums)
+	logger.Log("Artists dont need related data, simply inserting", logger.Info)
+	err := spotify.InsertArtists(dbData.Artists)
 	if err != nil {
-		logger.Log("Failed to attach and insert songs into the database", logger.Error)
+		logger.Log("Failed to insert artists into the database", logger.Error)
 		return dbData, err
 	}
-	dbData.Songs = dbSongs
 
 	logger.Log("Attaching appropriate UUIDs to albums to be inserted, then inserting", logger.Info)
 	err = spotify.AttachAlbumUUIDs(dbData.Albums, dbData.Artists)
@@ -157,6 +156,14 @@ func (spotify *Spotify) AttachAndInsertFreshData(APIData APIData, dbData DBData)
 		return dbData, err
 	}
 
+	logger.Log("Attaching appropriate UUIDs to tracks to be inserted, then inserting", logger.Info)
+	dbSongs, err := spotify.AttachTrackUUIDs(dbData.Songs, dbData.Artists, dbData.Albums)
+	if err != nil {
+		logger.Log("Failed to attach and insert songs into the database", logger.Error)
+		return dbData, err
+	}
+	dbData.Songs = dbSongs
+
 	logger.Log("Inserting all relevant thumbnails into DB", logger.Info)
 	err = spotify.InsertThumbnails(APIData.Songs, APIData.Recents, APIData.Artists, dbData.Artists, dbData.Albums)
 	if err != nil {
@@ -164,12 +171,6 @@ func (spotify *Spotify) AttachAndInsertFreshData(APIData APIData, dbData DBData)
 		return dbData, err
 	}
 
-	logger.Log("Artists dont need related data, simply inserting", logger.Info)
-	err = spotify.InsertArtists(dbData.Artists)
-	if err != nil {
-		logger.Log("Failed to insert artists into the database", logger.Error)
-		return dbData, err
-	}
 	return dbData, nil
 }
 
@@ -384,12 +385,14 @@ func (spotify *Spotify) AttachTrackUUIDs(songs []models.Song, artists []models.A
 				break
 			}
 		}
+
 		for _, album := range albums {
 			if songs[i].AlbumID == album.SpotifyID {
 				songs[i].AlbumID = album.ID
 				break
 			}
 		}
+
 		songValues = append(songValues, songs[i].ToSlice()...)
 	}
 

@@ -64,6 +64,8 @@ func main() {
 		panic(err)
 	}
 
+	database.StartTX()
+
 	me, err := api.Me()
 	if err != nil {
 		logger.Log("Failed to fetch Me endpoint", logger.Error)
@@ -81,8 +83,11 @@ func main() {
 
 	err = spotify.Ingest()
 	if err != nil {
+		database.Rollback()
 		panic(err)
 	}
+
+	database.Commit()
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
