@@ -293,13 +293,6 @@ func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, db
 
 func (spotify *Spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListenData) error {
 
-	logger.Log(spotify.Options.UserID, logger.Warning)
-	logger.Log(spotify.Options.UserID, logger.Warning)
-	logger.Log(spotify.Options.UserID, logger.Warning)
-	logger.Log(spotify.Options.UserID, logger.Warning)
-	logger.Log(spotify.Options.UserID, logger.Warning)
-	logger.Log(spotify.Options.UserID, logger.Warning)
-	logger.Log(spotify.Options.UserID, logger.Warning)
 	newRecentListen := models.NewRecentListen(spotify.Options.UserID)
 	recentListenValues := []interface{}{}
 	recentListenDataValues := []interface{}{}
