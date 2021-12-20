@@ -384,6 +384,10 @@ func (spotify *Spotify) AttachTrackUUIDs(songs []models.Song, artists []models.A
 				songs[i].ArtistID = artist.ID
 				break
 			}
+
+		}
+		if len(songs[i].ArtistID) != 36 {
+			logger.Log(fmt.Sprintf("Artist with spotify ID %s could not find match", songs[i].ArtistID), logger.Warning)
 		}
 
 		for _, album := range albums {
