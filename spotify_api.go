@@ -223,6 +223,8 @@ func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]Artist, error) {
 	chunkedIDs := utils.ChunkSlice(ids, 50)
 	artistList := []Artist{}
 
+	fmt.Println(ids)
+
 	for _, chunk := range chunkedIDs {
 		data := url.Values{}
 		data.Set("ids", strings.Join(chunk, ","))
