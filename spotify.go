@@ -552,6 +552,7 @@ Outer:
 	for id := range artistSpotifyIDs.UniqueMap {
 		for _, dbArtist := range dbArtists {
 			if dbArtist.SpotifyID == id {
+				logger.Log(fmt.Sprintf("Database already contains artist %s (%s)", dbArtist.Name, dbArtist.SpotifyID), logger.Debug)
 				continue Outer
 			}
 		}
