@@ -441,6 +441,10 @@ func (spotify *Spotify) AttachAlbumUUIDs(albums []models.Album, artists []models
 			continue
 		}
 		for _, artist := range artists {
+			// hardcoded 'various artists'
+			if albums[i].ArtistID == "0LyfQWJT6nXafLPZqxe9Of" {
+				albums[i].ArtistID = "7e1339ee-0d2a-4de6-9187-78d6874ae044"
+			}
 			if albums[i].ArtistID == artist.SpotifyID {
 				albums[i].ArtistID = artist.ID
 				break
