@@ -541,6 +541,9 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 		for _, artist := range song.Track.Album.Artists {
 			artistSpotifyIDs.Add(artist.ID)
 		}
+		for _, artist := range song.Track.Artists {
+			artistSpotifyIDs.Add(artist.ID)
+		}
 	}
 
 	logger.Log(fmt.Sprintf("Querying database for %d artists", len(artistSpotifyIDs.Args())), logger.Debug)
