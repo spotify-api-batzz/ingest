@@ -92,7 +92,7 @@ func main() {
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
-	baseUsers := []interface{}{"bungusbuster", "anneteresa-gb"}
+	baseUsers := []interface{}{"bungusbuster", "anneteresa-gb", "tomadams1997"}
 	users, err := db.FetchUsersByNames(baseUsers)
 	if err != nil {
 		panic(err)
