@@ -80,7 +80,7 @@ func main() {
 	}
 	args.UserID = user.ID
 
-	spotify := newSpotify(&database, api, user.ID, args)
+	spotify := newSpotify(&database, api, args)
 
 	err = spotify.Ingest()
 	if err != nil {
