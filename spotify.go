@@ -523,10 +523,11 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 	// Songs to attempt to fetch from DB
 
 	artistSpotifyIDs := utils.NewStringArgs()
-	// artistSpotifyIDs := []interface{}{}
 	for _, resp := range songs {
 		for _, song := range resp.Items {
-			artistSpotifyIDs.Add(song.Artists[0].ID)
+			for _, artist := range song.Artists {
+				artistSpotifyIDs.Add(artist.ID)
+			}
 		}
 	}
 
@@ -537,7 +538,9 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 	}
 
 	for _, song := range recents.Items {
-		artistSpotifyIDs.Add(song.Track.Album.Artists[0].ID)
+		for _, artist := range song.Track.Album.Artists {
+			artistSpotifyIDs.Add(artist.ID)
+		}
 	}
 
 	logger.Log(fmt.Sprintf("Querying database for %d artists", len(artistSpotifyIDs.Args())), logger.Debug)
