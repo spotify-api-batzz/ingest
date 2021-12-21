@@ -592,7 +592,7 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 				logger.Log(fmt.Sprintf("Failed to attach album ID for album %s", song.Album.Name), logger.Warning)
 			}
 			for _, image := range song.Album.Images {
-				thumbnail := models.NewThumbnail("album", "", image.URL, image.Height, image.Width)
+				thumbnail := models.NewThumbnail("Album", "", image.URL, image.Height, image.Width)
 				if exists {
 					thumbnail.EntityID = dbAlbum.ID
 				}
@@ -608,7 +608,7 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 				logger.Log(fmt.Sprintf("Failed to attach artist ID for artist %s", artist.Name), logger.Warning)
 			}
 			for _, image := range artist.Images {
-				thumbnail := models.NewThumbnail("artist", "", image.URL, image.Height, image.Width)
+				thumbnail := models.NewThumbnail("Artist", "", image.URL, image.Height, image.Width)
 				if exists {
 					thumbnail.EntityID = dbArtist.ID
 				}
@@ -623,7 +623,7 @@ func (spotify *Spotify) InsertThumbnails(songs map[string]TopTracksResponse, rec
 			logger.Log(fmt.Sprintf("Failed to attach album ID for track %s", song.Track.Album.Name), logger.Warning)
 		}
 		for _, image := range song.Track.Album.Images {
-			thumbnail := models.NewThumbnail("album", "", image.URL, image.Height, image.Width)
+			thumbnail := models.NewThumbnail("Album", "", image.URL, image.Height, image.Width)
 			if exists {
 				thumbnail.EntityID = dbAlbum.ID
 			}
