@@ -10,7 +10,7 @@ import (
 
 type Thumbnail struct {
 	ID        uuid.UUID `db:"id"`
-	Entity    string    `db:"entity"`
+	Entity    string    `db:"entity_type"`
 	EntityID  string    `db:"entity_id"`
 	URL       string    `db:"url"`
 	Width     int       `db:"width"`
@@ -35,7 +35,7 @@ func (r *Thumbnail) TableName() string {
 }
 
 func (r *Thumbnail) TableColumns() []string {
-	return []string{"id", "entity", "entity_id", "url", "width", "height", "created_at", "updated_at"}
+	return []string{"id", "entity_type", "entity_id", "url", "width", "height", "created_at", "updated_at"}
 }
 
 func (t *Thumbnail) ToSlice() []interface{} {
