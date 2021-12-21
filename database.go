@@ -218,7 +218,7 @@ func (d *Database) CreateSong(songValues []interface{}) error {
 	return nil
 }
 func (d *Database) CreateThumbnail(thumbnailValues []interface{}) error {
-	sql := fmt.Sprintf("INSERT INTO thumbnails (id, entity, entity_id, url, width, height, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(8, len(thumbnailValues)/8))
+	sql := fmt.Sprintf("INSERT INTO thumbnails (id, entity_type, entity_id, url, width, height, created_at, updated_at) VALUES %s ", PrepareBatchValuesPG(8, len(thumbnailValues)/8))
 	_, err := d.MustGetTx().Exec(sql, thumbnailValues...)
 	if err != nil {
 		return err
