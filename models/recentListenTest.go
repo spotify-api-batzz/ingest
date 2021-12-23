@@ -29,7 +29,7 @@ func NewRecentListen(songID string, userID string, playedAt time.Time) RecentLis
 }
 
 func (r *RecentListen) TableName() string {
-	return "test_recent_listens"
+	return "recent_listens"
 }
 
 func (r *RecentListen) TableColumns() []string {
