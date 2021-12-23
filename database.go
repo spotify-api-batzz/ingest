@@ -156,6 +156,21 @@ func (d *Database) FetchRecentListensByUserID(userID string) ([]models.RecentLis
 	return recentListens, nil
 }
 
+// earliest time optimization
+func (d *Database) FetchRecentListensByUserIDAndTime(userID string, recentListenedToIDs []interface{}) ([]models.RecentListenTest, error) {
+	recentListens := []models.RecentListenTest{}
+	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenTest{})
+	tableName := (&models.RecentListenTest{}).TableName()
+	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1 AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 2))
+	vars := []interface{}{userID}
+	vars = append(vars, recentListenedToIDs...)
+	err := d.MustGetTx().Select(&recentListens, sql, vars...)
+	if err != nil {
+		return nil, err
+	}
+	return recentListens, nil
+}
+
 func (d *Database) FetchRecentListenDataByTime(playedAts []interface{}, recentListenedToIDs []interface{}) ([]models.RecentListenData, error) {
 	recentListenData := []models.RecentListenData{}
 	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenData{})

@@ -35,7 +35,7 @@ type DBData struct {
 	Songs             []models.Song
 	Albums            []models.Album
 	Artists           []models.Artist
-	RecentListensData []models.RecentListenData
+	RecentListensTest []models.RecentListenTest
 }
 
 func newSpotify(database *Database, api SpotifyAPI, options SpotifyIngestOptions) Spotify {
@@ -67,7 +67,7 @@ func (spotify *Spotify) Ingest() error {
 	}
 
 	logger.Log("Fetching all existing recently listened to songs", logger.Info)
-	relatedData.RecentListensData, err = spotify.FetchExistingRecentListens(APIData.Recents)
+	relatedData.RecentListensTest, err = spotify.FetchExistingRecentListensTest(APIData.Recents)
 	if err != nil {
 		logger.Log("Failed to fetch recently listened to songs from the database", logger.Error)
 		return err
@@ -178,7 +178,7 @@ func (spotify *Spotify) InsertUserData(APIData APIData, dbData DBData) error {
 
 	if spotify.Options.RecentListen {
 		logger.Log("Inserting all recently listened to songs", logger.Info)
-		err := spotify.InsertRecentListens(APIData.Recents, dbData.Songs, dbData.RecentListensData)
+		err := spotify.InsertRecentListensTest(APIData.Recents, dbData.Songs, dbData.RecentListensTest)
 		if err != nil {
 			logger.Log("Failed to insert recentlistens into the database", logger.Error)
 			return err
@@ -291,7 +291,7 @@ func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, db
 	return nil
 }
 
-func (spotify *Spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListenData) error {
+func (spotify *Spotify) InsertRecentListensTest(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListenTest) error {
 
 	newRecentListen := models.NewRecentListen(spotify.Options.UserID)
 	recentListenValues := []interface{}{}
@@ -304,7 +304,8 @@ Outer:
 			}
 		}
 
-		newRecentListenData := models.NewRecentListenData("", newRecentListen.ID.String(), recentListen.PlayedAt)
+		newRecentListenData := models.NewRecentListenTest("", spotify.Options.UserID, recentListen.PlayedAt)
+		// newRecentListenData := models.NewRecentListenData("", newRecentListen.ID.String(), recentListen.PlayedAt)
 		song, exists := getSongBySpotifyID(songs, recentListen.Track.ID)
 		if exists {
 			newRecentListenData.SongID = song.ID
@@ -321,16 +322,9 @@ Outer:
 		return nil
 	}
 
-	logger.Log("Inserting new recently listened to record", logger.Info)
-	logger.Log(fmt.Sprintf("Inserting %d new recent_listen records", len(recentListenValues)/len((&models.RecentListen{}).TableColumns())), logger.Debug)
-	err := spotify.Database.Create(&models.RecentListen{}, recentListenValues)
-	if err != nil {
-		return err
-	}
-
 	logger.Log("Inserting new recently listened to songs", logger.Info)
-	logger.Log(fmt.Sprintf("Inserting %d new recent_listen_data records", len(recentListenDataValues)/len((&models.RecentListenData{}).TableColumns())), logger.Debug)
-	err = spotify.Database.Create(&models.RecentListenData{}, recentListenDataValues)
+	logger.Log(fmt.Sprintf("Inserting %d new recent_listen_test records", len(recentListenDataValues)/len((&models.RecentListenTest{}).TableColumns())), logger.Debug)
+	err := spotify.Database.Create(&models.RecentListenTest{}, recentListenDataValues)
 	if err != nil {
 		return err
 	}
@@ -338,7 +332,7 @@ Outer:
 	return nil
 }
 
-func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedResponse) ([]models.RecentListenData, error) {
+func (spotify *Spotify) FetchExistingRecentListensTest(recents RecentlyPlayedResponse) ([]models.RecentListenTest, error) {
 	recentPlayedAtList := []interface{}{}
 	for _, recent := range recents.Items {
 		recentPlayedAtList = append(recentPlayedAtList, recent.PlayedAt.Format(time.RFC3339))
@@ -346,30 +340,15 @@ func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedRespons
 
 	if len(recentPlayedAtList) == 0 {
 		logger.Log("User has no recently played songs", logger.Debug)
-		return []models.RecentListenData{}, nil
+		return []models.RecentListenTest{}, nil
 	}
 
-	recentListens, err := spotify.Database.FetchRecentListensByUserID(spotify.Options.UserID)
+	recentListens, err := spotify.Database.FetchRecentListensByUserIDAndTime(spotify.Options.UserID, recentPlayedAtList)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(recentListens) == 0 {
-		logger.Log("Database contains no recently listened to songs for this user", logger.Debug)
-		return []models.RecentListenData{}, nil
-	}
-
-	recentListenIDs := []interface{}{}
-	for _, recentListen := range recentListens {
-		recentListenIDs = append(recentListenIDs, recentListen.ID.String())
-	}
-
-	recentListenData, err := spotify.Database.FetchRecentListenDataByTime(recentPlayedAtList, recentListenIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	return recentListenData, nil
+	return recentListens, nil
 }
 
 func (spotify *Spotify) AttachTrackUUIDs(songs []models.Song, artists []models.Artist, albums []models.Album) ([]models.Song, error) {
