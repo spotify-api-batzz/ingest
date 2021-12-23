@@ -149,7 +149,7 @@ func (d *Database) FetchRecentListensByUserIDAndTime(userID string, recentListen
 	recentListens := []models.RecentListen{}
 	columnNames := goutils.ColumnNamesExclusive(&models.RecentListen{})
 	tableName := (&models.RecentListen{}).TableName()
-	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1 AND played_at > $2 AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 3))
+	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1 AND played_at >= $2 AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 3))
 	vars := []interface{}{userID, earliestTime}
 	vars = append(vars, recentListenedToIDs...)
 	err := d.MustGetTx().Select(&recentListens, sql, vars...)
