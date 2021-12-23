@@ -304,6 +304,7 @@ Outer:
 
 		newRecentListenData := models.NewRecentListen("", spotify.Options.UserID, recentListen.PlayedAt)
 		song, exists := getSongBySpotifyID(songs, recentListen.Track.ID)
+		fmt.Println(song)
 		if exists {
 			newRecentListenData.SongID = song.ID
 		} else {
