@@ -144,46 +144,19 @@ func (d *Database) FetchArtistByID(id string) (models.Artist, error) {
 	return artist, nil
 }
 
-func (d *Database) FetchRecentListensByUserID(userID string) ([]models.RecentListen, error) {
+// earliest time optimization
+func (d *Database) FetchRecentListensByUserIDAndTime(userID string, recentListenedToIDs []interface{}, earliestTime interface{}) ([]models.RecentListen, error) {
 	recentListens := []models.RecentListen{}
 	columnNames := goutils.ColumnNamesExclusive(&models.RecentListen{})
 	tableName := (&models.RecentListen{}).TableName()
-	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1", columnNames, tableName)
-	err := d.MustGetTx().Select(&recentListens, sql, userID)
-	if err != nil {
-		return nil, err
-	}
-	return recentListens, nil
-}
-
-// earliest time optimization
-func (d *Database) FetchRecentListensByUserIDAndTime(userID string, recentListenedToIDs []interface{}) ([]models.RecentListenTest, error) {
-	recentListens := []models.RecentListenTest{}
-	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenTest{})
-	tableName := (&models.RecentListenTest{}).TableName()
-	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1 AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 2))
-	vars := []interface{}{userID}
+	sql := fmt.Sprintf("SELECT %s FROM %s WHERE user_id = $1 AND played_at > $2 AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 3))
+	vars := []interface{}{userID, earliestTime}
 	vars = append(vars, recentListenedToIDs...)
 	err := d.MustGetTx().Select(&recentListens, sql, vars...)
 	if err != nil {
 		return nil, err
 	}
 	return recentListens, nil
-}
-
-func (d *Database) FetchRecentListenDataByTime(playedAts []interface{}, recentListenedToIDs []interface{}) ([]models.RecentListenData, error) {
-	recentListenData := []models.RecentListenData{}
-	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenData{})
-	tableName := (&models.RecentListenData{}).TableName()
-	sql := fmt.Sprintf("SELECT %s FROM %s WHERE recent_listen_id IN (%s) AND played_at IN (%s)", columnNames, tableName, PrepareInStringPG(1, len(recentListenedToIDs), 1), PrepareInStringPG(1, len(playedAts), 1+len(recentListenedToIDs)))
-	vars := []interface{}{}
-	vars = append(vars, recentListenedToIDs...)
-	vars = append(vars, playedAts...)
-	err := d.MustGetTx().Select(&recentListenData, sql, vars...)
-	if err != nil {
-		return nil, err
-	}
-	return recentListenData, nil
 }
 
 func (d *Database) FetchThumbnailsByEntityID(entityIDs []interface{}) ([]models.Thumbnail, error) {
@@ -262,17 +235,6 @@ func (d *Database) CreateTopSong(topArtistValues []interface{}) error {
 func (d *Database) CreateRecentlyListened(recentlyListenedValues []interface{}) error {
 	sql := fmt.Sprintf(`INSERT INTO recent_listens (id, user_id, created_at, updated_at) VALUES %s `, PrepareBatchValuesPG(4, len(recentlyListenedValues)/4))
 	_, err := d.MustGetTx().Exec(sql, recentlyListenedValues...)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (d *Database) CreateRecentlyListenedData(recentlyListenedDataValues []interface{}) error {
-	columnNames := goutils.ColumnNamesExclusive(&models.RecentListenData{})
-	tableName := (&models.RecentListenData{}).TableName()
-	sql := fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s `, tableName, columnNames, PrepareBatchValuesPG(len((&models.RecentListenData{}).TableColumns()), len(recentlyListenedDataValues)/len((&models.RecentListenData{}).TableColumns())))
-	_, err := d.MustGetTx().Exec(sql, recentlyListenedDataValues...)
 	if err != nil {
 		return err
 	}
