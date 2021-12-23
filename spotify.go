@@ -344,8 +344,6 @@ func (spotify *Spotify) FetchExistingRecentListensTest(recents RecentlyPlayedRes
 		return []models.RecentListen{}, nil
 	}
 
-	fmt.Println(earliestRecentlyPlayedAt.Format(time.RFC3339))
-
 	recentListens, err := spotify.Database.FetchRecentListensByUserIDAndTime(spotify.Options.UserID, recentPlayedAtList, earliestRecentlyPlayedAt.Format(time.RFC3339))
 	if err != nil {
 		return nil, err
