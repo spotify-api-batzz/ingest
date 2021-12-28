@@ -89,8 +89,7 @@ func main() {
 		panic(err)
 	}
 
-	database.Rollback()
-	// database.Commit()
+	database.Commit()
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
