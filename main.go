@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"strings"
 
 	"spotify/models"
 	"spotify/utils"
@@ -88,12 +89,16 @@ func main() {
 		panic(err)
 	}
 
-	// database.Rollback()
 	database.Commit()
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
-	baseUsers := []interface{}{"bungusbuster", "anneteresa-gb", "tomadams1997"}
+	envUsers := strings.Split(utils.MustGetEnv("users"), ",")
+	baseUsers := []interface{}{}
+	for _, user := range envUsers {
+		baseUsers = append(baseUsers, user)
+	}
+
 	users, err := db.FetchUsersByNames(baseUsers)
 	if err != nil {
 		panic(err)
