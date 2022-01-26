@@ -434,6 +434,11 @@ func (spotify *Spotify) AttachAlbumUUIDs(albums []models.Album, artists []models
 				break
 			}
 		}
+		if albums[i].ArtistID == "" {
+			fmt.Println(albums[i].ArtistID)
+			fmt.Println(albums[i].ArtistID)
+			fmt.Println(albums[i].ArtistID)
+		}
 		albumValues = append(albumValues, albums[i].ToSlice()...)
 	}
 
