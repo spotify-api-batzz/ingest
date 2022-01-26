@@ -424,25 +424,16 @@ func (spotify *Spotify) AttachAlbumUUIDs(albums []models.Album, artists []models
 		if !album.NeedsUpdate {
 			continue
 		}
-		foReal := false
 		for _, artist := range artists {
 			// hardcoded 'various artists'
 			if albums[i].ArtistID == "0LyfQWJT6nXafLPZqxe9Of" {
 				albums[i].ArtistID = "7e1339ee-0d2a-4de6-9187-78d6874ae044"
-				foReal = true
 			}
 			if albums[i].ArtistID == artist.SpotifyID {
 				albums[i].ArtistID = artist.ID
-				foReal = true
 				break
 			}
 
-		}
-		if !foReal {
-			fmt.Println(albums[i].Name)
-			fmt.Println(albums[i].ArtistID)
-			fmt.Println(albums[i].ArtistID)
-			fmt.Println(albums[i].ArtistID)
 		}
 		albumValues = append(albumValues, albums[i].ToSlice()...)
 	}
@@ -516,6 +507,9 @@ func (spotify *Spotify) PopulateArtists(songs map[string]TopTracksResponse, arti
 	for _, resp := range songs {
 		for _, song := range resp.Items {
 			for _, artist := range song.Artists {
+				artistSpotifyIDs.Add(artist.ID)
+			}
+			for _, artist := range song.Album.Artists {
 				artistSpotifyIDs.Add(artist.ID)
 			}
 		}

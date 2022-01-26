@@ -220,7 +220,6 @@ func (api *spotifyAPI) TopTracksForUser(period string) (TopTracksResponse, error
 }
 
 func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]Artist, error) {
-	fmt.Println(ids)
 	chunkedIDs := utils.ChunkSlice(ids, 50)
 	artistList := []Artist{}
 
@@ -425,7 +424,6 @@ func (api *spotifyAPI) Refresh() error {
 		return err
 	}
 
-	fmt.Println(refreshResp)
 	api.Tokens.Token = refreshResp.Access
 
 	return nil
