@@ -439,6 +439,7 @@ func (spotify *Spotify) AttachAlbumUUIDs(albums []models.Album, artists []models
 
 		}
 		if !foReal {
+			fmt.Println(albums[i].Name)
 			fmt.Println(albums[i].ArtistID)
 			fmt.Println(albums[i].ArtistID)
 			fmt.Println(albums[i].ArtistID)
