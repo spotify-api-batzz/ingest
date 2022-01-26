@@ -425,6 +425,7 @@ func (api *spotifyAPI) Refresh() error {
 		return err
 	}
 
+	fmt.Println(refreshResp)
 	api.Tokens.Token = refreshResp.Access
 
 	return nil
