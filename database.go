@@ -77,9 +77,9 @@ func (d *Database) MustGetTx() *sqlx.Tx {
 	return d.Tx
 }
 
-func (d *Database) FetchUsersByNames(names []interface{}) ([]models.User, error) {
+func (d *Database) FetchUsersBySpotifyIds(names []interface{}) ([]models.User, error) {
 	user := []models.User{}
-	sql := fmt.Sprintf("SELECT * FROM users WHERE username IN (%s)", PrepareInStringPG(1, len(names), 1))
+	sql := fmt.Sprintf("SELECT * FROM users WHERE spotify_id IN (%s)", PrepareInStringPG(1, len(names), 1))
 	err := d.MustGetTx().Select(&user, sql, names...)
 	if err != nil {
 		return nil, err

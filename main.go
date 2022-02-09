@@ -99,7 +99,7 @@ func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (mod
 		baseUsers = append(baseUsers, user)
 	}
 
-	users, err := db.FetchUsersByNames(baseUsers)
+	users, err := db.FetchUsersBySpotifyIds(baseUsers)
 	if err != nil {
 		panic(err)
 	}
