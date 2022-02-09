@@ -119,7 +119,7 @@ Outer:
 	}
 
 	for _, user := range users {
-		if user.Username == usernameToReturn {
+		if user.SpotifyID == usernameToReturn {
 			userToReturn = user
 		}
 	}

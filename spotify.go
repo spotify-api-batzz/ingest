@@ -67,7 +67,7 @@ func (spotify *Spotify) Ingest() error {
 	}
 
 	logger.Log("Fetching all existing recently listened to songs", logger.Info)
-	relatedData.RecentListens, err = spotify.FetchExistingRecentListensTest(APIData.Recents)
+	relatedData.RecentListens, err = spotify.FetchExistingRecentListens(APIData.Recents)
 	if err != nil {
 		logger.Log("Failed to fetch recently listened to songs from the database", logger.Error)
 		return err
@@ -178,7 +178,7 @@ func (spotify *Spotify) InsertUserData(APIData APIData, dbData DBData) error {
 
 	if spotify.Options.RecentListen {
 		logger.Log("Inserting all recently listened to songs", logger.Info)
-		err := spotify.InsertRecentListensTest(APIData.Recents, dbData.Songs, dbData.RecentListens)
+		err := spotify.InsertRecentListens(APIData.Recents, dbData.Songs, dbData.RecentListens)
 		if err != nil {
 			logger.Log("Failed to insert recentlistens into the database", logger.Error)
 			return err
@@ -291,7 +291,7 @@ func (spotify *Spotify) InsertTopArtists(songs map[string]TopArtistsResponse, db
 	return nil
 }
 
-func (spotify *Spotify) InsertRecentListensTest(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListen) error {
+func (spotify *Spotify) InsertRecentListens(recents RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListen) error {
 
 	recentListenValues := []interface{}{}
 Outer:
@@ -318,7 +318,7 @@ Outer:
 	}
 
 	logger.Log("Inserting new recently listened to songs", logger.Info)
-	logger.Log(fmt.Sprintf("Inserting %d new recent_listen_test records", len(recentListenValues)/len((&models.RecentListen{}).TableColumns())), logger.Debug)
+	logger.Log(fmt.Sprintf("Inserting %d new recent_listen records", len(recentListenValues)/len((&models.RecentListen{}).TableColumns())), logger.Debug)
 	err := spotify.Database.Create(&models.RecentListen{}, recentListenValues)
 	if err != nil {
 		return err
@@ -327,7 +327,7 @@ Outer:
 	return nil
 }
 
-func (spotify *Spotify) FetchExistingRecentListensTest(recents RecentlyPlayedResponse) ([]models.RecentListen, error) {
+func (spotify *Spotify) FetchExistingRecentListens(recents RecentlyPlayedResponse) ([]models.RecentListen, error) {
 	recentPlayedAtList := []interface{}{}
 	var earliestRecentlyPlayedAt time.Time
 	for _, recent := range recents.Items {
