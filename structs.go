@@ -10,8 +10,7 @@ type MeResponse struct {
 		Spotify string `json:"spotify"`
 	} `json:"external_urls"`
 	Followers struct {
-		Href  interface{} `json:"href"`
-		Total int         `json:"total"`
+		Href interface{} `json:"href"`
 	} `json:"followers"`
 	Href    string  `json:"href"`
 	ID      string  `json:"id"`
@@ -101,7 +100,6 @@ type RecentlyPlayedResponse struct {
 
 type TopArtistsResponse struct {
 	Items    []Artist    `json:"items"`
-	Total    int         `json:"total"`
 	Limit    int         `json:"limit"`
 	Offset   int         `json:"offset"`
 	Href     string      `json:"href"`
@@ -114,8 +112,7 @@ type Artist struct {
 		Spotify string `json:"spotify"`
 	} `json:"external_urls"`
 	Followers struct {
-		Href  interface{} `json:"href"`
-		Total int         `json:"total"`
+		Href interface{} `json:"href"`
 	} `json:"followers"`
 	Genres     []string `json:"genres"`
 	Href       string   `json:"href"`
@@ -128,8 +125,8 @@ type Artist struct {
 }
 
 type TopTracksResponse struct {
-	Items    []Song      `json:"items"`
-	Total    int         `json:"total"`
+	Items []Song `json:"items"`
+
 	Limit    int         `json:"limit"`
 	Offset   int         `json:"offset"`
 	Href     string      `json:"href"`
@@ -276,7 +273,6 @@ type Album struct {
 		Next     interface{} `json:"next"`
 		Offset   int         `json:"offset"`
 		Previous interface{} `json:"previous"`
-		Total    int         `json:"total"`
 	} `json:"tracks"`
 	Type string `json:"type"`
 	URI  string `json:"uri"`
