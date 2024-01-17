@@ -19,13 +19,13 @@ type Thumbnail struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-func NewThumbnail(entity string, entityID string, URL string, height int, width int) Thumbnail {
+func NewThumbnail(entity string, entityID string, URL string, height float64, width float64) Thumbnail {
 	return Thumbnail{
 		ID:       uuid.New(),
 		Entity:   entity,
 		EntityID: entityID,
-		Width:    width,
-		Height:   height,
+		Width:    int(width),
+		Height:   int(height),
 		URL:      URL,
 	}
 }

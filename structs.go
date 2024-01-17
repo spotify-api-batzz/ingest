@@ -45,7 +45,7 @@ type RecentlyPlayedResponse struct {
 				Name                 string  `json:"name"`
 				ReleaseDate          string  `json:"release_date"`
 				ReleaseDatePrecision string  `json:"release_date_precision"`
-				TotalTracks          int     `json:"total_tracks"`
+				TotalTracks          float64 `json:"total_tracks"`
 				Type                 string  `json:"type"`
 				URI                  string  `json:"uri"`
 			} `json:"album"`
@@ -60,8 +60,8 @@ type RecentlyPlayedResponse struct {
 				URI  string `json:"uri"`
 			} `json:"artists"`
 			AvailableMarkets []string `json:"available_markets"`
-			DiscNumber       int      `json:"disc_number"`
-			DurationMs       int      `json:"duration_ms"`
+			DiscNumber       float64  `json:"disc_number"`
+			DurationMs       float64  `json:"duration_ms"`
 			Explicit         bool     `json:"explicit"`
 			ExternalIds      struct {
 				Isrc string `json:"isrc"`
@@ -69,15 +69,15 @@ type RecentlyPlayedResponse struct {
 			ExternalUrls struct {
 				Spotify string `json:"spotify"`
 			} `json:"external_urls"`
-			Href        string `json:"href"`
-			ID          string `json:"id"`
-			IsLocal     bool   `json:"is_local"`
-			Name        string `json:"name"`
-			Popularity  int    `json:"popularity"`
-			PreviewURL  string `json:"preview_url"`
-			TrackNumber int    `json:"track_number"`
-			Type        string `json:"type"`
-			URI         string `json:"uri"`
+			Href        string  `json:"href"`
+			ID          string  `json:"id"`
+			IsLocal     bool    `json:"is_local"`
+			Name        string  `json:"name"`
+			Popularity  float64 `json:"popularity"`
+			PreviewURL  string  `json:"preview_url"`
+			TrackNumber float64 `json:"track_number"`
+			Type        string  `json:"type"`
+			URI         string  `json:"uri"`
 		} `json:"track"`
 		PlayedAt time.Time `json:"played_at"`
 		Context  struct {
@@ -94,14 +94,14 @@ type RecentlyPlayedResponse struct {
 		After  string `json:"after"`
 		Before string `json:"before"`
 	} `json:"cursors"`
-	Limit int    `json:"limit"`
-	Href  string `json:"href"`
+	Limit float64 `json:"limit"`
+	Href  string  `json:"href"`
 }
 
 type TopArtistsResponse struct {
 	Items    []Artist    `json:"items"`
-	Limit    int         `json:"limit"`
-	Offset   int         `json:"offset"`
+	Limit    float64     `json:"limit"`
+	Offset   float64     `json:"offset"`
 	Href     string      `json:"href"`
 	Previous interface{} `json:"previous"`
 	Next     string      `json:"next"`
@@ -119,7 +119,7 @@ type Artist struct {
 	ID         string   `json:"id"`
 	Images     []Image  `json:"images"`
 	Name       string   `json:"name"`
-	Popularity int      `json:"popularity"`
+	Popularity float64  `json:"popularity"`
 	Type       string   `json:"type"`
 	URI        string   `json:"uri"`
 }
@@ -127,8 +127,8 @@ type Artist struct {
 type TopTracksResponse struct {
 	Items []Song `json:"items"`
 
-	Limit    int         `json:"limit"`
-	Offset   int         `json:"offset"`
+	Limit    float64     `json:"limit"`
+	Offset   float64     `json:"offset"`
 	Href     string      `json:"href"`
 	Previous interface{} `json:"previous"`
 	Next     string      `json:"next"`
@@ -143,9 +143,9 @@ type ArtistsResponse struct {
 }
 
 type Image struct {
-	Height int    `json:"height"`
-	URL    string `json:"url"`
-	Width  int    `json:"width"`
+	Height float64 `json:"height"`
+	URL    string  `json:"url"`
+	Width  float64 `json:"width"`
 }
 
 type Song struct {
@@ -171,7 +171,7 @@ type Song struct {
 		Name                 string  `json:"name"`
 		ReleaseDate          string  `json:"release_date"`
 		ReleaseDatePrecision string  `json:"release_date_precision"`
-		TotalTracks          int     `json:"total_tracks"`
+		TotalTracks          float64 `json:"total_tracks"`
 		Type                 string  `json:"type"`
 		URI                  string  `json:"uri"`
 	} `json:"album"`
@@ -186,8 +186,8 @@ type Song struct {
 		URI  string `json:"uri"`
 	} `json:"artists"`
 	AvailableMarkets []string `json:"available_markets"`
-	DiscNumber       int      `json:"disc_number"`
-	DurationMs       int      `json:"duration_ms"`
+	DiscNumber       float64  `json:"disc_number"`
+	DurationMs       float64  `json:"duration_ms"`
 	Explicit         bool     `json:"explicit"`
 	ExternalIds      struct {
 		Isrc string `json:"isrc"`
@@ -195,15 +195,15 @@ type Song struct {
 	ExternalUrls struct {
 		Spotify string `json:"spotify"`
 	} `json:"external_urls"`
-	Href        string `json:"href"`
-	ID          string `json:"id"`
-	IsLocal     bool   `json:"is_local"`
-	Name        string `json:"name"`
-	Popularity  int    `json:"popularity"`
-	PreviewURL  string `json:"preview_url"`
-	TrackNumber int    `json:"track_number"`
-	Type        string `json:"type"`
-	URI         string `json:"uri"`
+	Href        string  `json:"href"`
+	ID          string  `json:"id"`
+	IsLocal     bool    `json:"is_local"`
+	Name        string  `json:"name"`
+	Popularity  float64 `json:"popularity"`
+	PreviewURL  string  `json:"preview_url"`
+	TrackNumber float64 `json:"track_number"`
+	Type        string  `json:"type"`
+	URI         string  `json:"uri"`
 }
 
 type AlbumResponse struct {
@@ -238,7 +238,7 @@ type Album struct {
 	ID                   string        `json:"id"`
 	Images               []Image       `json:"images"`
 	Name                 string        `json:"name"`
-	Popularity           int           `json:"popularity"`
+	Popularity           float64       `json:"popularity"`
 	ReleaseDate          string        `json:"release_date"`
 	ReleaseDatePrecision string        `json:"release_date_precision"`
 	Tracks               struct {
@@ -255,23 +255,23 @@ type Album struct {
 				URI  string `json:"uri"`
 			} `json:"artists"`
 			AvailableMarkets []string `json:"available_markets"`
-			DiscNumber       int      `json:"disc_number"`
-			DurationMs       int      `json:"duration_ms"`
+			DiscNumber       float64  `json:"disc_number"`
+			DurationMs       float64  `json:"duration_ms"`
 			Explicit         bool     `json:"explicit"`
 			ExternalUrls     struct {
 				Spotify string `json:"spotify"`
 			} `json:"external_urls"`
-			Href        string `json:"href"`
-			ID          string `json:"id"`
-			Name        string `json:"name"`
-			PreviewURL  string `json:"preview_url"`
-			TrackNumber int    `json:"track_number"`
-			Type        string `json:"type"`
-			URI         string `json:"uri"`
+			Href        string  `json:"href"`
+			ID          string  `json:"id"`
+			Name        string  `json:"name"`
+			PreviewURL  string  `json:"preview_url"`
+			TrackNumber float64 `json:"track_number"`
+			Type        string  `json:"type"`
+			URI         string  `json:"uri"`
 		} `json:"items"`
-		Limit    int         `json:"limit"`
+		Limit    float64     `json:"limit"`
 		Next     interface{} `json:"next"`
-		Offset   int         `json:"offset"`
+		Offset   float64     `json:"offset"`
 		Previous interface{} `json:"previous"`
 	} `json:"tracks"`
 	Type string `json:"type"`
