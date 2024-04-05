@@ -1,5 +1,5 @@
 #!/bin/bash
-cd ~/Desktop/projects/spotify/ingest
+cd ~/spotify/ingest
 source .env
 IFS=',' read -ra ADDR <<< "${users}"
 for var in "${ADDR[@]}"; do
