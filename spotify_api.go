@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"spotify/utils"
@@ -60,24 +60,26 @@ func NewAPIOptions(refreshRetries int) *APIOptions {
 
 type spotifyAPI struct {
 	BaseURL string
-	Creds   ClientInfo
-	Tokens  AccessCreds
+	Auth    SpotifyAPIAuth
 	Client  http.Client
+	Metrics MetricHandler
 	opts    *APIOptions
 }
 
-func NewSpotifyAPI(baseURL string, secret string, clientID string, refresh string, options *APIOptions) SpotifyAPI {
+type SpotifyAPIAuth struct {
+	Secret       string
+	ClientID     string
+	RefreshToken string
+	AccessToken  string
+}
+
+func NewSpotifyAPI(baseURL string, Metrics MetricHandler, auth SpotifyAPIAuth, options *APIOptions) SpotifyAPI {
 	return &spotifyAPI{
 		BaseURL: baseURL,
 		Client:  http.Client{},
-		Creds: ClientInfo{
-			Secret: secret,
-			ID:     clientID,
-		},
-		Tokens: AccessCreds{
-			Refresh: refresh,
-		},
-		opts: options,
+		Metrics: Metrics,
+		Auth:    auth,
+		opts:    options,
 	}
 }
 
@@ -85,27 +87,42 @@ func (api *spotifyAPI) Options() *APIOptions {
 	return api.opts
 }
 
-func (api *spotifyAPI) Me() (MeResponse, error) {
-	req, err := http.NewRequest("GET", "https://api.spotify.com/v1/me", nil)
+func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byte, error) {
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
-		return MeResponse{}, err
+		return []byte{}, err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Auth.AccessToken))
+	api.Metrics.spotifyApiMetrics.totalRequests.Add(1)
 
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return MeResponse{}, err
-	}
-	defer body.Body.Close()
-
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return MeResponse{}, err
+	if method == "POST" {
+		req.Header.Set("Authorization", BasicAuth(api.Auth.ClientID, api.Auth.Secret))
+		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	if body.StatusCode != 200 {
+	resp, err := api.Client.Do(req)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer resp.Body.Close()
+
+	bytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if resp.StatusCode != 200 {
 		fmt.Println(string(bytes))
-		return MeResponse{}, errors.New("status code not 200")
+		return []byte{}, errors.New("status code not 200")
+	}
+
+	return bytes, nil
+}
+
+func (api *spotifyAPI) Me() (MeResponse, error) {
+	bytes, err := api.Request("GET", "https://api.spotify.com/v1/me", nil)
+	if err != nil {
+		return MeResponse{}, err
 	}
 
 	meResp := MeResponse{}
@@ -120,25 +137,10 @@ func (api *spotifyAPI) Me() (MeResponse, error) {
 func (api *spotifyAPI) RecentlyPlayedByUser() (RecentlyPlayedResponse, error) {
 	data := url.Values{}
 	data.Set("limit", "50")
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/me/player/recently-played?%s", data.Encode()), nil)
+	url := fmt.Sprintf("https://api.spotify.com/v1/me/player/recently-played?%s", data.Encode())
+	bytes, err := api.Request("GET", url, nil)
 	if err != nil {
 		return RecentlyPlayedResponse{}, err
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
-
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return RecentlyPlayedResponse{}, err
-	}
-	defer body.Body.Close()
-
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return RecentlyPlayedResponse{}, err
-	}
-
-	if body.StatusCode != 200 {
-		return RecentlyPlayedResponse{}, errors.New("status code not 200")
 	}
 
 	recentlyPlayedResp := RecentlyPlayedResponse{}
@@ -154,26 +156,11 @@ func (api *spotifyAPI) TopArtistsForUser(period string) (TopArtistsResponse, err
 	data := url.Values{}
 	data.Set("time_range", period)
 	data.Set("limit", "50")
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/me/top/artists?%s", data.Encode()), nil)
 
+	url := fmt.Sprintf("https://api.spotify.com/v1/me/top/artists?%s", data.Encode())
+	bytes, err := api.Request("GET", url, nil)
 	if err != nil {
 		return TopArtistsResponse{}, err
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
-
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return TopArtistsResponse{}, err
-	}
-	defer body.Body.Close()
-
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return TopArtistsResponse{}, err
-	}
-
-	if body.StatusCode != 200 {
-		return TopArtistsResponse{}, errors.New("status code not 200")
 	}
 
 	topPlayedResp := TopArtistsResponse{}
@@ -189,25 +176,11 @@ func (api *spotifyAPI) TopTracksForUser(period string) (TopTracksResponse, error
 	data := url.Values{}
 	data.Set("time_range", period)
 	data.Set("limit", "50")
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/me/top/tracks?%s", data.Encode()), nil)
+
+	url := fmt.Sprintf("https://api.spotify.com/v1/me/top/tracks?%s", data.Encode())
+	bytes, err := api.Request("GET", url, nil)
 	if err != nil {
 		return TopTracksResponse{}, err
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
-
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return TopTracksResponse{}, err
-	}
-	defer body.Body.Close()
-
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return TopTracksResponse{}, err
-	}
-
-	if body.StatusCode != 200 {
-		return TopTracksResponse{}, errors.New("status code not 200")
 	}
 
 	topPlayedResp := TopTracksResponse{}
@@ -226,25 +199,10 @@ func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]Artist, error) {
 	for _, chunk := range chunkedIDs {
 		data := url.Values{}
 		data.Set("ids", strings.Join(chunk, ","))
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/artists?%s", data.Encode()), nil)
+		url := fmt.Sprintf("https://api.spotify.com/v1/artists?%s", data.Encode())
+		bytes, err := api.Request("GET", url, nil)
 		if err != nil {
 			return nil, err
-		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
-
-		body, err := api.Client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer body.Body.Close()
-
-		bytes, err := ioutil.ReadAll(body.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		if body.StatusCode != 200 {
-			return nil, errors.New("status code not 200")
 		}
 
 		artistsResp := ArtistsResponse{}
@@ -266,25 +224,11 @@ func (api *spotifyAPI) TracksBySpotifyID(ids []string) ([]Song, error) {
 	for _, chunk := range chunkedIDs {
 		data := url.Values{}
 		data.Set("ids", strings.Join(chunk, ","))
-		req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/tracks?%s", data.Encode()), nil)
+
+		url := fmt.Sprintf("https://api.spotify.com/v1/tracks?%s", data.Encode())
+		bytes, err := api.Request("GET", url, nil)
 		if err != nil {
 			return nil, err
-		}
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
-
-		body, err := api.Client.Do(req)
-		if err != nil {
-			return nil, err
-		}
-		defer body.Body.Close()
-
-		bytes, err := ioutil.ReadAll(body.Body)
-		if err != nil {
-			return nil, err
-		}
-
-		if body.StatusCode != 200 {
-			return nil, errors.New("status code not 200")
 		}
 
 		tracksResp := TracksResponse{}
@@ -317,26 +261,9 @@ func (api *spotifyAPI) AlbumsBySpotifyID(ids []string) ([]Album, error) {
 func (api *spotifyAPI) albumsBySpotifyID(ids []string) (AlbumResponse, error) {
 	data := url.Values{}
 	data.Set("ids", strings.Join(ids, ","))
-	req, err := http.NewRequest("GET", fmt.Sprintf("https://api.spotify.com/v1/albums?%s", data.Encode()), nil)
+	bytes, err := api.Request("GET", fmt.Sprintf("https://api.spotify.com/v1/albums?%s", data.Encode()), nil)
 	if err != nil {
 		return AlbumResponse{}, err
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Tokens.Token))
-
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return AlbumResponse{}, err
-	}
-	defer body.Body.Close()
-
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return AlbumResponse{}, err
-	}
-
-	if body.StatusCode != 200 {
-		fmt.Println(string(bytes))
-		return AlbumResponse{}, errors.New("status code not 200")
 	}
 
 	albumResp := AlbumResponse{}
@@ -354,27 +281,9 @@ func (api *spotifyAPI) Authorize(code string) error {
 	data.Set("code", code)
 	data.Set("redirect_uri", "http://localhost")
 
-	req, err := http.NewRequest("POST", "https://accounts.spotify.com/api/token", strings.NewReader(data.Encode()))
-	req.Header.Set("Authorization", BasicAuth(api.Creds.ID, api.Creds.Secret))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
+	bytes, err := api.Request("POST", "https://accounts.spotify.com/api/token", strings.NewReader(data.Encode()))
 	if err != nil {
 		return err
-	}
-
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	defer body.Body.Close()
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return err
-	}
-
-	if body.StatusCode != 200 {
-		return errors.New("status code not 200")
 	}
 
 	authResp := AuthResponse{}
@@ -383,10 +292,8 @@ func (api *spotifyAPI) Authorize(code string) error {
 		return err
 	}
 
-	api.Tokens = AccessCreds{
-		Token:   authResp.Access,
-		Refresh: authResp.Refresh,
-	}
+	api.Auth.AccessToken = authResp.Access
+	api.Auth.RefreshToken = authResp.Refresh
 
 	return nil
 }
@@ -394,28 +301,11 @@ func (api *spotifyAPI) Authorize(code string) error {
 func (api *spotifyAPI) Refresh() error {
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
-	data.Set("refresh_token", api.Tokens.Refresh)
+	data.Set("refresh_token", api.Auth.RefreshToken)
 
-	req, err := http.NewRequest("POST", "https://accounts.spotify.com/api/token", strings.NewReader(data.Encode()))
-	req.Header.Set("Authorization", BasicAuth(api.Creds.ID, api.Creds.Secret))
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	bytes, err := api.Request("POST", "https://accounts.spotify.com/api/token", strings.NewReader(data.Encode()))
 	if err != nil {
 		return err
-	}
-
-	body, err := api.Client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer body.Body.Close()
-
-	bytes, err := ioutil.ReadAll(body.Body)
-	if err != nil {
-		return err
-	}
-
-	if body.StatusCode != 200 {
-		return errors.New("status code not 200")
 	}
 
 	refreshResp := RefreshResponse{}
@@ -424,7 +314,7 @@ func (api *spotifyAPI) Refresh() error {
 		return err
 	}
 
-	api.Tokens.Token = refreshResp.Access
+	api.Auth.AccessToken = refreshResp.Access
 
 	return nil
 }

@@ -48,7 +48,14 @@ func main() {
 
 	logger.Setup(logger.Debug, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
 
-	api := NewSpotifyAPI("https://accounts.spotify.com/", utils.MustGetEnv("secret"), utils.MustGetEnv("clientID"), utils.MustGetEnv(fmt.Sprintf("refresh_%s", args.UserID)), NewAPIOptions(3))
+	spotifyAPIAuth := SpotifyAPIAuth{
+		Secret:       utils.MustGetEnv("secret"),
+		ClientID:     utils.MustGetEnv("clientID"),
+		RefreshToken: utils.MustGetEnv(fmt.Sprintf("refresh_%s", args.UserID)),
+	}
+
+	metricHandler := NewMetricHandler(utils.MustGetEnv("push_gateway_url"))
+	api := NewSpotifyAPI("https://accounts.spotify.com/", metricHandler, spotifyAPIAuth, NewAPIOptions(3))
 
 	logger.Log(fmt.Sprintf("Beginning spotify data ingest, user id %s.", args.UserID), logger.Info)
 
@@ -90,6 +97,7 @@ func main() {
 	}
 
 	database.Commit()
+	metricHandler.Push()
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {
