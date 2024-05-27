@@ -96,8 +96,13 @@ func main() {
 		panic(err)
 	}
 
+	err = metricHandler.Push()
+	if err != nil {
+		database.Rollback()
+		panic(err)
+	}
+
 	database.Commit()
-	metricHandler.Push()
 }
 
 func HandleBaseUsers(db Database, usernameToReturn string, user MeResponse) (models.User, error) {

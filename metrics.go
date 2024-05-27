@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -42,13 +43,15 @@ func NewMetricHandler(gatewayUrl string) MetricHandler {
 
 }
 
-func (m *MetricHandler) Push() {
+func (m *MetricHandler) Push() error {
 	if err := push.New(m.gatewayUrl, "spotify_api").
 		Collector(m.spotifyApiMetrics.totalRequests).
 		Grouping("spotify", "api").
 		Push(); err != nil {
 		fmt.Println("Could not push puzzy time to Pushgateway:", err)
+		return err
 	}
 
 	fmt.Println("Pushy PUSHY YOYOY")
+	return errors.New("yee")
 }
