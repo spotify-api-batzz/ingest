@@ -30,6 +30,7 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 	retryBackoff := backoff.NewExponentialBackOff()
 
 	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
+	fmt.Println(logstashUrl)
 	esClientRetryHandler := func(i int) time.Duration {
 		fmt.Println("retrybackoff", i)
 		if i == 1 {
@@ -104,6 +105,8 @@ func newSongIndex(ctx IndexItemContext, id string, spotifyId string, name string
 	data["spotifyId"] = spotifyId
 	body, _ := json.Marshal(data)
 
+	fmt.Println(body)
+
 	return esutil.BulkIndexerItem{
 		Action:     "index",
 		DocumentID: id,
@@ -117,6 +120,7 @@ func newApiRequestIndex(ctx IndexItemContext) esutil.BulkIndexerItem {
 	data := make(map[string]interface{})
 	data["spotifyId"] = "test"
 	body, _ := json.Marshal(data)
+	fmt.Println(body)
 
 	return esutil.BulkIndexerItem{
 		Action:     "index",
