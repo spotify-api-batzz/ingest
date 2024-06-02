@@ -104,6 +104,8 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		return []byte{}, err
 	}
 
+	api.Metrics.bulkIndexer.Add(newApiRequestIndex(api.Metrics.BiCtx()))
+
 	defer resp.Body.Close()
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {

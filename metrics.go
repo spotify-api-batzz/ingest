@@ -110,3 +110,17 @@ func newSongIndex(ctx IndexItemContext, id string, spotifyId string, name string
 		OnFailure:  ctx.OnFailure,
 	}
 }
+
+func newApiRequestIndex(ctx IndexItemContext) esutil.BulkIndexerItem {
+	data := make(map[string]interface{})
+	data["spotifyId"] = "test"
+	body, _ := json.Marshal(data)
+
+	return esutil.BulkIndexerItem{
+		Action:     "index",
+		DocumentID: "123",
+		Body:       bytes.NewReader(body),
+		OnSuccess:  ctx.OnSuccess,
+		OnFailure:  ctx.OnFailure,
+	}
+}
