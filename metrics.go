@@ -31,6 +31,7 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 
 	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
 	esClientRetryHandler := func(i int) time.Duration {
+		fmt.Println("retrybackoff", i)
 		if i == 1 {
 			retryBackoff.Reset()
 		}
