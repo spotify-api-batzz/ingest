@@ -124,6 +124,7 @@ func newApiRequestIndex(ctx IndexItemContext) esutil.BulkIndexerItem {
 	fmt.Println(body)
 
 	return esutil.BulkIndexerItem{
+		Index:      "tester",
 		Action:     "index",
 		DocumentID: "123",
 		Body:       bytes.NewReader(body),
