@@ -62,7 +62,7 @@ type spotifyAPI struct {
 	BaseURL string
 	Auth    SpotifyAPIAuth
 	Client  http.Client
-	Metrics MetricHandler
+	Metrics *MetricHandler
 	opts    *APIOptions
 }
 
@@ -77,7 +77,7 @@ func NewSpotifyAPI(baseURL string, Metrics MetricHandler, auth SpotifyAPIAuth, o
 	return &spotifyAPI{
 		BaseURL: baseURL,
 		Client:  http.Client{},
-		Metrics: Metrics,
+		Metrics: &Metrics,
 		Auth:    auth,
 		opts:    options,
 	}
@@ -92,9 +92,8 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 	if err != nil {
 		return []byte{}, err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Auth.AccessToken))
-	api.Metrics.spotifyApiMetrics.totalRequests.Add(1)
 
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", api.Auth.AccessToken))
 	if method == "POST" {
 		req.Header.Set("Authorization", BasicAuth(api.Auth.ClientID, api.Auth.Secret))
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -104,8 +103,8 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 	if err != nil {
 		return []byte{}, err
 	}
-	defer resp.Body.Close()
 
+	defer resp.Body.Close()
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return []byte{}, err

@@ -54,7 +54,14 @@ func main() {
 		RefreshToken: utils.MustGetEnv(fmt.Sprintf("refresh_%s", args.UserID)),
 	}
 
-	metricHandler := NewMetricHandler(utils.MustGetEnv("push_gateway_url"))
+	logStashHostname := utils.MustGetEnv("logstash_hostname")
+	logStashPort := utils.MustGetEnvInt("logstash_port")
+	metricHandler, err := NewMetricHandler(logStashHostname, logStashPort)
+	if err != nil {
+		logger.Log("Failed to make metrics handler", logger.Error)
+		panic(err)
+	}
+
 	api := NewSpotifyAPI("https://accounts.spotify.com/", metricHandler, spotifyAPIAuth, NewAPIOptions(3))
 
 	logger.Log(fmt.Sprintf("Beginning spotify data ingest, user id %s.", args.UserID), logger.Info)
@@ -96,11 +103,11 @@ func main() {
 		panic(err)
 	}
 
-	// err = metricHandler.Push()
-	// if err != nil {
-	// 	database.Rollback()
-	// 	panic(err)
-	// }
+	err = metricHandler.Close()
+	if err != nil {
+		database.Rollback()
+		panic(err)
+	}
 
 	database.Commit()
 }

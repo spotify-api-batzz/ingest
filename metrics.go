@@ -1,56 +1,112 @@
 package main
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/push"
+	"github.com/batzz-00/goutils/logger"
+	"github.com/cenkalti/backoff"
+	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/elastic/go-elasticsearch/v8/esutil"
 )
 
-const (
-	app_name          = "spotify_ingest"
-	spotify_api_group = "spotify_api"
-)
+type BulkIndexerWrapper struct {
+	bulkIndexer esutil.BulkIndexer
+}
 
-type SpotifyApiMetrics struct {
-	totalRequests prometheus.Counter
+func (b *BulkIndexerWrapper) Add(item esutil.BulkIndexerItem) error {
+	return b.bulkIndexer.Add(context.Background(), item)
 }
 
 type MetricHandler struct {
-	// ingest
-	gatewayUrl        string
-	spotifyApiMetrics SpotifyApiMetrics
+	bulkIndexer BulkIndexerWrapper
 }
 
-func newSpotifyApiMetrics() SpotifyApiMetrics {
-	totalRequests := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "spotify_ingest_spotify_api_requests_total",
-		Help: "The amount of requests sent to the spotify API",
+func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, error) {
+	retryBackoff := backoff.NewExponentialBackOff()
+
+	logstashUrl := fmt.Sprintf("%s:%d", logstashHost, logstashPort)
+	esClientRetryHandler := func(i int) time.Duration {
+		if i == 1 {
+			retryBackoff.Reset()
+		}
+		return retryBackoff.NextBackOff()
+	}
+
+	es, err := elasticsearch.NewClient(elasticsearch.Config{
+		Addresses: []string{
+			logstashUrl,
+		},
+		RetryOnStatus: []int{502, 503, 504, 429},
+		RetryBackoff:  esClientRetryHandler,
+		MaxRetries:    5,
 	})
 
-	return SpotifyApiMetrics{
-		totalRequests: totalRequests,
+	if err != nil {
+		return MetricHandler{}, err
 	}
-}
 
-func NewMetricHandler(gatewayUrl string) MetricHandler {
+	bi, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
+		Index:  "spotfy_api", // The default index name
+		Client: es,           // The Elasticsearch client
+	})
+
+	if err != nil {
+		return MetricHandler{}, err
+	}
+
 	return MetricHandler{
-		gatewayUrl: gatewayUrl,
-		// metricsByName: MakeMetrics(),
-		spotifyApiMetrics: newSpotifyApiMetrics(),
-	}
+		bulkIndexer: BulkIndexerWrapper{bulkIndexer: bi},
+	}, nil
 
 }
 
-func (m *MetricHandler) Push() error {
-	if err := push.New(m.gatewayUrl, "spotify_api").
-		Collector(m.spotifyApiMetrics.totalRequests).
-		Grouping("spotify", "api").
-		Push(); err != nil {
-		fmt.Println("Could not push to Pushgateway:", err)
+func (metric *MetricHandler) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
+	logger.Log(fmt.Sprintf("Added item with id %s succesfully", item.DocumentID), logger.Trace)
+}
+
+func (metric *MetricHandler) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
+	logger.Log(fmt.Sprintf("Failed to add item with ID %s, err %s", item.DocumentID, err.Error()), logger.Error)
+}
+
+func (metric *MetricHandler) BiCtx() IndexItemContext {
+	return IndexItemContext{
+		OnSuccess: metric.OnSuccess,
+		OnFailure: metric.OnFailure,
+	}
+}
+
+func (m *MetricHandler) Close() error {
+	fmt.Println("closing bulk indexer")
+	err := m.bulkIndexer.bulkIndexer.Close(context.Background())
+	if err != nil {
 		return err
 	}
 
-	fmt.Println("pushed to push gateway")
-	return nil
+	fmt.Println("closed bulk indexer")
+
+	return errors.New("olaa")
+}
+
+type IndexItemContext struct {
+	OnSuccess func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem)
+	OnFailure func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem, error)
+}
+
+func newSongIndex(ctx IndexItemContext, id string, spotifyId string, name string) esutil.BulkIndexerItem {
+	data := make(map[string]interface{})
+	data["spotifyId"] = spotifyId
+	body, _ := json.Marshal(data)
+
+	return esutil.BulkIndexerItem{
+		Action:     "index",
+		DocumentID: id,
+		Body:       bytes.NewReader(body),
+		OnSuccess:  ctx.OnSuccess,
+		OnFailure:  ctx.OnFailure,
+	}
 }
