@@ -29,7 +29,7 @@ type MetricHandler struct {
 func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, error) {
 	retryBackoff := backoff.NewExponentialBackOff()
 
-	logstashUrl := fmt.Sprintf("%s:%d", logstashHost, logstashPort)
+	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
 	esClientRetryHandler := func(i int) time.Duration {
 		if i == 1 {
 			retryBackoff.Reset()
