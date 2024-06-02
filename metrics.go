@@ -82,6 +82,7 @@ func (metric *MetricHandler) BiCtx() IndexItemContext {
 
 func (m *MetricHandler) Close() error {
 	fmt.Println("closing bulk indexer")
+	fmt.Println(m.bulkIndexer.bulkIndexer.Stats())
 	err := m.bulkIndexer.bulkIndexer.Close(context.Background())
 	if err != nil {
 		return err
