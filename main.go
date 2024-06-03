@@ -93,8 +93,8 @@ func main() {
 		logger.Log("Failed when handling base user routine", logger.Error)
 		panic(err)
 	}
-	args.UserID = user.ID
 
+	args.UserID = user.ID
 	spotify := newSpotify(&database, api, args)
 
 	err = spotify.Ingest()

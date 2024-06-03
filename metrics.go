@@ -43,9 +43,10 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 		Addresses: []string{
 			logstashUrl,
 		},
-		RetryOnStatus: []int{502, 503, 504, 429},
-		RetryBackoff:  esClientRetryHandler,
-		MaxRetries:    5,
+		RetryOnStatus:     []int{502, 503, 504, 429},
+		EnableDebugLogger: true,
+		RetryBackoff:      esClientRetryHandler,
+		MaxRetries:        5,
 	})
 
 	if err != nil {
@@ -68,11 +69,15 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 }
 
 func (metric *MetricHandler) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
+	fmt.Println("SUCCESS--")
 	logger.Log(fmt.Sprintf("Added item with id %s succesfully", item.DocumentID), logger.Trace)
+	fmt.Println("SUCCESS--")
 }
 
 func (metric *MetricHandler) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
+	fmt.Println("FAIL--")
 	logger.Log(fmt.Sprintf("Failed to add item with ID %s, err %s", item.DocumentID, err.Error()), logger.Error)
+	fmt.Println("FAIL--")
 }
 
 func (metric *MetricHandler) BiCtx() IndexItemContext {
