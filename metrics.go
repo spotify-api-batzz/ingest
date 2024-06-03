@@ -110,7 +110,7 @@ func newSongIndex(ctx IndexItemContext, id string, spotifyId string, name string
 	data["spotifyId"] = spotifyId
 	body, _ := json.Marshal(data)
 
-	fmt.Println(body)
+	fmt.Println(string(body))
 
 	return esutil.BulkIndexerItem{
 		Action:     "index",
@@ -126,7 +126,7 @@ func newApiRequestIndex(ctx IndexItemContext) esutil.BulkIndexerItem {
 	fmt.Println("heh")
 	data["spotifyId"] = "test"
 	body, _ := json.Marshal(data)
-	fmt.Println(body)
+	fmt.Println(string(body))
 
 	return esutil.BulkIndexerItem{
 		Index:      "tester",
