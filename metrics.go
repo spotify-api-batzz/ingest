@@ -23,7 +23,7 @@ func (b *BulkIndexerWrapper) Add(item esutil.BulkIndexerItem) error {
 }
 
 type MetricHandler struct {
-	bulkIndexer BulkIndexerWrapper
+	bulkIndexer *BulkIndexerWrapper
 }
 
 func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, error) {
@@ -63,7 +63,7 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 	}
 
 	return MetricHandler{
-		bulkIndexer: BulkIndexerWrapper{bulkIndexer: bi},
+		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi},
 	}, nil
 
 }
