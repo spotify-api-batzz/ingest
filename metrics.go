@@ -101,6 +101,10 @@ func (m *MetricHandler) Close() error {
 	return errors.New("olaa")
 }
 
+func (m *MetricHandler) AddApiRequestIndex(url string, reqBody string) error {
+	return m.bulkIndexer.Add(newApiRequestIndex(m.BiCtx(), url, reqBody))
+}
+
 type IndexItemContext struct {
 	OnSuccess func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem)
 	OnFailure func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem, error)

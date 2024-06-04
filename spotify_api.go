@@ -97,9 +97,12 @@ func ioReaderToString(body io.Reader) string {
 }
 
 func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byte, error) {
-	var bodyBytes bytes.Buffer
-	reqBody := io.TeeReader(body, &bodyBytes)
-	req, err := http.NewRequest(method, url, reqBody)
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return []byte{}, err
 	}
@@ -110,7 +113,11 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	api.Metrics.bulkIndexer.Add(newApiRequestIndex(api.Metrics.BiCtx(), url, bodyBytes.String()))
+	err = api.Metrics.AddApiRequestIndex(url, string(bodyBytes))
+	if err != nil {
+		return []byte{}, err
+	}
+
 	resp, err := api.Client.Do(req)
 	if err != nil {
 		return []byte{}, err
