@@ -128,7 +128,6 @@ func newApiRequestIndex(ctx IndexItemContext, url string, reqBody string) esutil
 	data["url"] = url
 	data["reqBody"] = reqBody
 	body, _ := json.Marshal(data)
-	fmt.Println(string(body))
 
 	return esutil.BulkIndexerItem{
 		Index:     "spotify",
