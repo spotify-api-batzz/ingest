@@ -48,7 +48,11 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 		RetryBackoff:      esClientRetryHandler,
 		MaxRetries:        5,
 	})
-
+	tet, err := es.Indices.Get([]string{"test"})
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(tet)
 	es.Indices.Create("tester")
 	document := struct {
 		Name string `json:"name"`
@@ -57,6 +61,7 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 	}
 	data, _ := json.Marshal(document)
 	es.Index("tester", bytes.NewReader(data))
+	es.Get("tester", "id")
 
 	if err != nil {
 		return MetricHandler{}, err
