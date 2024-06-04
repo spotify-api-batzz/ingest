@@ -130,9 +130,10 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 		return value
 	}
 
-	keysToScrub := []string{""}
+	keysToScrub := []string{"refresh_token"}
 	params := data.Query()
 	for _, key := range keysToScrub {
+		fmt.Println(key, params)
 		if params.Has(key) {
 			params.Set(key, convertToAsterisks(params.Get(key)))
 		}
