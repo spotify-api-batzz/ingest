@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"spotify/utils"
 	"time"
 
 	"github.com/batzz-00/goutils/logger"
@@ -47,6 +48,8 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 		EnableDebugLogger: true,
 		RetryBackoff:      esClientRetryHandler,
 		MaxRetries:        5,
+		Username:          utils.MustGetEnv("elastic_username"),
+		Password:          utils.MustGetEnv("elastic_password"),
 	})
 	tet, err := es.Indices.Get([]string{"test"})
 	if err != nil {
