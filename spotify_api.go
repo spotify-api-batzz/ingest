@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -87,6 +88,14 @@ func (api *spotifyAPI) Options() *APIOptions {
 	return api.opts
 }
 
+func ioReaderToString(body io.Reader) string {
+	var buf bytes.Buffer
+	clonedBody := io.TeeReader(body, &buf)
+	bytes, _ := io.ReadAll(clonedBody)
+
+	return string(bytes)
+}
+
 func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
@@ -104,7 +113,7 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		return []byte{}, err
 	}
 
-	api.Metrics.bulkIndexer.Add(newApiRequestIndex(api.Metrics.BiCtx()))
+	api.Metrics.bulkIndexer.Add(newApiRequestIndex(api.Metrics.BiCtx(), url, ioReaderToString(body)))
 
 	defer resp.Body.Close()
 	bytes, err := io.ReadAll(resp.Body)

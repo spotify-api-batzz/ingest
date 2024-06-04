@@ -6,7 +6,7 @@ require (
 	github.com/batzz-00/goutils v1.0.5
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/elastic/go-elasticsearch/v8 v8.13.1
-	github.com/google/uuid v1.2.0
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v4 v4.11.0
 	github.com/jmoiron/sqlx v1.3.1
 	github.com/joho/godotenv v1.3.0

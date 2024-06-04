@@ -106,9 +106,10 @@ type IndexItemContext struct {
 	OnFailure func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem, error)
 }
 
-func newSongIndex(ctx IndexItemContext, id string, spotifyId string, name string) esutil.BulkIndexerItem {
+func newSongIndex(ctx IndexItemContext, id string, spotifyId string, reqBody string) esutil.BulkIndexerItem {
 	data := make(map[string]interface{})
 	data["spotifyId"] = spotifyId
+	data["reqBody"] = reqBody
 	body, _ := json.Marshal(data)
 
 	fmt.Println(string(body))
@@ -122,19 +123,18 @@ func newSongIndex(ctx IndexItemContext, id string, spotifyId string, name string
 	}
 }
 
-func newApiRequestIndex(ctx IndexItemContext) esutil.BulkIndexerItem {
+func newApiRequestIndex(ctx IndexItemContext, url string, reqBody string) esutil.BulkIndexerItem {
 	data := make(map[string]interface{})
-	fmt.Println("heh")
-	data["spotifyId"] = "test"
+	data["url"] = url
+	data["reqBody"] = reqBody
 	body, _ := json.Marshal(data)
 	fmt.Println(string(body))
 
 	return esutil.BulkIndexerItem{
-		Index:      "tester",
-		Action:     "index",
-		DocumentID: "123",
-		Body:       bytes.NewReader(body),
-		OnSuccess:  ctx.OnSuccess,
-		OnFailure:  ctx.OnFailure,
+		Index:     "spotify",
+		Action:    "index",
+		Body:      bytes.NewReader(body),
+		OnSuccess: ctx.OnSuccess,
+		OnFailure: ctx.OnFailure,
 	}
 }
