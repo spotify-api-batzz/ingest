@@ -109,12 +109,50 @@ func safeCloneReader(body io.Reader) (string, io.Reader, error) {
 	return string(bodyBytes), bytes.NewReader(bodyBytes), nil
 }
 
+func convertToAsterisks(input string) string {
+	length := len(input)
+	output := make([]byte, length)
+	for i := range output {
+		output[i] = '*'
+	}
+	return string(output)
+}
+
+type Scrubber interface {
+	Scrub(string) string
+}
+
+type QueryParamScrubber struct{}
+
+func (q *QueryParamScrubber) Scrub(value string) string {
+	data, err := url.Parse(value)
+	if err != nil {
+		return value
+	}
+
+	keysToScrub := []string{""}
+	params := data.Query()
+	for _, key := range keysToScrub {
+		if params.Has(key) {
+			params.Set(key, convertToAsterisks(params.Get(key)))
+		}
+	}
+
+	return params.Encode()
+}
+
+func scrubSensitiveData(val string) string {
+	qScrubber := QueryParamScrubber{}
+	return qScrubber.Scrub(val)
+}
+
 func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byte, error) {
 	bodyString, bodyReader, err := safeCloneReader(body)
 	if err != nil {
 		return []byte{}, err
 	}
 
+	cleansedBody := scrubSensitiveData(bodyString)
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return []byte{}, err
@@ -126,7 +164,7 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	err = api.Metrics.AddApiRequestIndex(url, bodyString)
+	err = api.Metrics.AddApiRequestIndex(url, cleansedBody)
 	if err != nil {
 		return []byte{}, err
 	}

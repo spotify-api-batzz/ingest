@@ -70,15 +70,11 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 }
 
 func (metric *MetricHandler) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
-	fmt.Println("SUCCESS--")
-	logger.Log(fmt.Sprintf("Added item with id %s succesfully", item.DocumentID), logger.Trace)
-	fmt.Println("SUCCESS--")
+	logger.Log(fmt.Sprintf("Added item with id %s (index %s) to event log", item.DocumentID, item.Index), logger.Trace)
 }
 
 func (metric *MetricHandler) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
-	fmt.Println("FAIL--")
-	logger.Log(fmt.Sprintf("Failed to add item with ID %s, err %s", item.DocumentID, err.Error()), logger.Error)
-	fmt.Println("FAIL--")
+	logger.Log(fmt.Sprintf("Failed to add item with ID %s (index %s), err %s to event log", item.DocumentID, item.Index, err.Error()), logger.Error)
 }
 
 func (metric *MetricHandler) BiCtx() IndexItemContext {
@@ -115,8 +111,6 @@ func newSongIndex(ctx IndexItemContext, id string, spotifyId string, reqBody str
 	data["spotifyId"] = spotifyId
 	data["reqBody"] = reqBody
 	body, _ := json.Marshal(data)
-
-	fmt.Println(string(body))
 
 	return esutil.BulkIndexerItem{
 		Action:     "index",
