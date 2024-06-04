@@ -49,6 +49,15 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 		MaxRetries:        5,
 	})
 
+	es.Indices.Create("tester")
+	document := struct {
+		Name string `json:"name"`
+	}{
+		"go-elasticsearch",
+	}
+	data, _ := json.Marshal(document)
+	es.Index("tester", bytes.NewReader(data))
+
 	if err != nil {
 		return MetricHandler{}, err
 	}

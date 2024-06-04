@@ -103,11 +103,11 @@ func main() {
 		panic(err)
 	}
 
-	// err = metricHandler.Close()
-	// if err != nil {
-	// 	database.Rollback()
-	// 	panic(err)
-	// }
+	err = metricHandler.Close()
+	if err != nil {
+		database.Rollback()
+		panic(err)
+	}
 
 	database.Commit()
 }
