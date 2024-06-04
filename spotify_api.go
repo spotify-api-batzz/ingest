@@ -108,12 +108,11 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
+	api.Metrics.bulkIndexer.Add(newApiRequestIndex(api.Metrics.BiCtx(), url, ioReaderToString(body)))
 	resp, err := api.Client.Do(req)
 	if err != nil {
 		return []byte{}, err
 	}
-
-	api.Metrics.bulkIndexer.Add(newApiRequestIndex(api.Metrics.BiCtx(), url, ioReaderToString(body)))
 
 	defer resp.Body.Close()
 	bytes, err := io.ReadAll(resp.Body)
