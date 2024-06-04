@@ -51,21 +51,6 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 		Username:          utils.MustGetEnv("elastic_username"),
 		Password:          utils.MustGetEnv("elastic_password"),
 	})
-	tet, err := es.Indices.Get([]string{"test"})
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(tet)
-	es.Indices.Create("tester")
-	document := struct {
-		Name string `json:"name"`
-	}{
-		"go-elasticsearch",
-	}
-	data, _ := json.Marshal(document)
-	es.Index("tester", bytes.NewReader(data))
-	es.Get("tester", "id")
-
 	if err != nil {
 		return MetricHandler{}, err
 	}
@@ -74,7 +59,6 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 		Index:  "spotfy_api", // The default index name
 		Client: es,           // The Elasticsearch client
 	})
-
 	if err != nil {
 		return MetricHandler{}, err
 	}
