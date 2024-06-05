@@ -148,9 +148,10 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 		}
 	}
 
-	fmt.Println(params, params.Encode())
+	str, _ := url.QueryUnescape(params.Encode())
+	fmt.Println(str)
 
-	return params.Encode()
+	return str
 }
 
 func scrubSensitiveData(val string) string {
