@@ -120,19 +120,27 @@ func convertToAsterisks(input string) string {
 
 type Scrubber interface {
 	Scrub(string) string
+	Is(string) bool
 }
 
 type QueryParamScrubber struct{}
 
+func (q *QueryParamScrubber) Is(value string) bool {
+	data, err := url.ParseQuery(value)
+	if err != nil {
+		return false
+	}
+
+	return len(data) != 0
+}
+
 func (q *QueryParamScrubber) Scrub(value string) string {
-	data, err := url.Parse(value)
+	params, err := url.ParseQuery(value)
 	if err != nil {
 		return value
 	}
 
 	keysToScrub := []string{"refresh_token"}
-	params := data.Query()
-	fmt.Println(data, params)
 	for _, key := range keysToScrub {
 		fmt.Println(key, params)
 		if params.Has(key) {
@@ -144,8 +152,14 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 }
 
 func scrubSensitiveData(val string) string {
-	qScrubber := QueryParamScrubber{}
-	return qScrubber.Scrub(val)
+	scrubbers := []Scrubber{&QueryParamScrubber{}}
+	for _, scrubber := range scrubbers {
+		if scrubber.Is(val) {
+			return scrubber.Scrub(val)
+		}
+	}
+
+	return val
 }
 
 func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byte, error) {
@@ -154,7 +168,6 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		return []byte{}, err
 	}
 
-	cleansedBody := scrubSensitiveData(bodyString)
 	req, err := http.NewRequest(method, url, bodyReader)
 	if err != nil {
 		return []byte{}, err
@@ -166,7 +179,9 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	err = api.Metrics.AddApiRequestIndex(url, cleansedBody)
+	sanitizedBody := scrubSensitiveData(bodyString)
+	sanitizedUrl := scrubSensitiveData(url)
+	err = api.Metrics.AddApiRequestIndex(sanitizedUrl, sanitizedBody)
 	if err != nil {
 		return []byte{}, err
 	}
