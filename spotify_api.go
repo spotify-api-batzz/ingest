@@ -160,6 +160,7 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 
 func scrubSensitiveData(val string) string {
 	scrubbers := []Scrubber{&QueryParamScrubber{}}
+	fmt.Println(val)
 	for _, scrubber := range scrubbers {
 		if scrubber.Is(val) {
 			return scrubber.Scrub(val)
