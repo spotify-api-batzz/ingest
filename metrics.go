@@ -95,7 +95,7 @@ func (m *MetricHandler) Close() error {
 }
 
 func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody string) error {
-	return m.bulkIndexer.Add(newApiRequestIndex(method, url, reqBody))
+	return m.bulkIndexer.Add(newApiRequestIndexBody(method, url, reqBody))
 }
 
 func newSongIndexBody(spotifyId string, reqBody string) map[string]interface{} {
@@ -106,7 +106,7 @@ func newSongIndexBody(spotifyId string, reqBody string) map[string]interface{} {
 	return data
 }
 
-func newApiRequestIndex(method string, url string, reqBody string) map[string]interface{} {
+func newApiRequestIndexBody(method string, url string, reqBody string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["url"] = url
 	data["method"] = method
