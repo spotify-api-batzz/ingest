@@ -141,12 +141,14 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 	}
 
 	keysToScrub := []string{"refresh_token"}
+	fmt.Println(key, params)
 	for _, key := range keysToScrub {
-		fmt.Println(key, params)
 		if params.Has(key) {
 			params.Set(key, convertToAsterisks(params.Get(key)))
 		}
 	}
+
+	fmt.Println(params, params.Encode())
 
 	return params.Encode()
 }
