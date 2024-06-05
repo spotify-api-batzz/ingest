@@ -17,11 +17,11 @@ import (
 
 type BulkIndexerWrapper struct {
 	bulkIndexer   esutil.BulkIndexer
-	ingestOptions SpotifyIngestOptions
+	ingestContext SpotifyIngestContext
 }
 
 func (b *BulkIndexerWrapper) Add(body map[string]interface{}) error {
-	body["apiOptions"] = b.ingestOptions
+	body["ctx"] = b.ingestContext
 	byteBody, _ := json.Marshal(body)
 
 	item := esutil.BulkIndexerItem{
@@ -34,17 +34,23 @@ func (b *BulkIndexerWrapper) Add(body map[string]interface{}) error {
 	return b.bulkIndexer.Add(context.Background(), item)
 }
 
+func (wrapper *BulkIndexerWrapper) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
+	logger.Log(fmt.Sprintf("Added item with id %s (index %s) to event log", item.DocumentID, item.Index), logger.Trace)
+}
+
+func (wrapper *BulkIndexerWrapper) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
+	logger.Log(fmt.Sprintf("Failed to add item with ID %s (index %s), err %s to event log", item.DocumentID, item.Index, err.Error()), logger.Error)
+}
+
 type MetricHandler struct {
 	bulkIndexer *BulkIndexerWrapper
 }
 
-func NewMetricHandler(logstashHost string, logstashPort int, options SpotifyIngestOptions) (MetricHandler, error) {
+func NewMetricHandler(logstashHost string, logstashPort int, context SpotifyIngestContext) (MetricHandler, error) {
 	retryBackoff := backoff.NewExponentialBackOff()
 
 	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
-	fmt.Println(logstashUrl)
 	esClientRetryHandler := func(i int) time.Duration {
-		fmt.Println("retrybackoff", i)
 		if i == 1 {
 			retryBackoff.Reset()
 		}
@@ -75,28 +81,16 @@ func NewMetricHandler(logstashHost string, logstashPort int, options SpotifyInge
 	}
 
 	return MetricHandler{
-		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi, ingestOptions: options},
+		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi, ingestContext: context},
 	}, nil
 
 }
 
-func (wrapper *BulkIndexerWrapper) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
-	logger.Log(fmt.Sprintf("Added item with id %s (index %s) to event log", item.DocumentID, item.Index), logger.Trace)
-}
-
-func (wrapper *BulkIndexerWrapper) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
-	logger.Log(fmt.Sprintf("Failed to add item with ID %s (index %s), err %s to event log", item.DocumentID, item.Index, err.Error()), logger.Error)
-}
-
 func (m *MetricHandler) Close() error {
-	fmt.Println("closing bulk indexer")
-	fmt.Println(m.bulkIndexer.bulkIndexer.Stats())
 	err := m.bulkIndexer.bulkIndexer.Close(context.Background())
 	if err != nil {
 		return err
 	}
-
-	fmt.Println("closed bulk indexer")
 
 	return errors.New("olaa")
 }

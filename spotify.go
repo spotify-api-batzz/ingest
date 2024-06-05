@@ -18,6 +18,11 @@ type SpotifyIngestOptions struct {
 	UserID       string
 }
 
+type SpotifyIngestContext struct {
+	Options SpotifyIngestOptions
+	Id      string
+}
+
 type Spotify struct {
 	Database *Database
 	Options  SpotifyIngestOptions
@@ -36,6 +41,13 @@ type DBData struct {
 	Albums        []models.Album
 	Artists       []models.Artist
 	RecentListens []models.RecentListen
+}
+
+func newIngestContext(options SpotifyIngestOptions) SpotifyIngestContext {
+	return SpotifyIngestContext{
+		Id:      uuid.NewString(),
+		Options: options,
+	}
 }
 
 func newSpotify(database *Database, api SpotifyAPI, options SpotifyIngestOptions) Spotify {

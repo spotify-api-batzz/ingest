@@ -160,7 +160,6 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 
 func scrubSensitiveData(val string) string {
 	scrubbers := []Scrubber{&QueryParamScrubber{}}
-	fmt.Println(val)
 	for _, scrubber := range scrubbers {
 		if scrubber.Is(val) {
 			return scrubber.Scrub(val)
@@ -206,7 +205,6 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 	}
 
 	if resp.StatusCode != 200 {
-		fmt.Println(string(bytes))
 		return []byte{}, errors.New("status code not 200")
 	}
 

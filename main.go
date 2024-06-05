@@ -54,9 +54,11 @@ func main() {
 		RefreshToken: utils.MustGetEnv(fmt.Sprintf("refresh_%s", args.UserID)),
 	}
 
+	ingestContext := newIngestContext(args)
+
 	logStashHostname := utils.MustGetEnv("logstash_hostname")
 	logStashPort := utils.MustGetEnvInt("logstash_port")
-	metricHandler, err := NewMetricHandler(logStashHostname, logStashPort, args)
+	metricHandler, err := NewMetricHandler(logStashHostname, logStashPort, ingestContext)
 	if err != nil {
 		logger.Log("Failed to make metrics handler", logger.Error)
 		panic(err)
