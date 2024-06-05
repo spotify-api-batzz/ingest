@@ -36,7 +36,6 @@ func (b *BulkIndexerWrapper) Add(body map[string]interface{}) error {
 
 type MetricHandler struct {
 	bulkIndexer *BulkIndexerWrapper
-	options     SpotifyIngestOptions
 }
 
 func NewMetricHandler(logstashHost string, logstashPort int, options SpotifyIngestOptions) (MetricHandler, error) {
@@ -76,7 +75,7 @@ func NewMetricHandler(logstashHost string, logstashPort int, options SpotifyInge
 	}
 
 	return MetricHandler{
-		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi},
+		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi, ingestOptions: options},
 	}, nil
 
 }
