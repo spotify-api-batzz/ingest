@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"spotify/utils"
 	"time"
@@ -92,19 +91,14 @@ func (m *MetricHandler) Close() error {
 		return err
 	}
 
-	return errors.New("olaa")
+	return nil
 }
 
 func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody string) error {
 	return m.bulkIndexer.Add(newApiRequestIndex(method, url, reqBody))
 }
 
-type IndexItemContext struct {
-	OnSuccess func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem)
-	OnFailure func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem, error)
-}
-
-func newSongIndexBody(id string, spotifyId string, reqBody string) map[string]interface{} {
+func newSongIndexBody(spotifyId string, reqBody string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["spotifyId"] = spotifyId
 	data["reqBody"] = reqBody
