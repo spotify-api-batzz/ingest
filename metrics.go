@@ -16,18 +16,30 @@ import (
 )
 
 type BulkIndexerWrapper struct {
-	bulkIndexer esutil.BulkIndexer
+	bulkIndexer   esutil.BulkIndexer
+	ingestOptions SpotifyIngestOptions
 }
 
-func (b *BulkIndexerWrapper) Add(item esutil.BulkIndexerItem) error {
+func (b *BulkIndexerWrapper) Add(body map[string]interface{}) error {
+	body["apiOptions"] = b.ingestOptions
+	byteBody, _ := json.Marshal(body)
+
+	item := esutil.BulkIndexerItem{
+		Action:    "index",
+		Body:      bytes.NewReader(byteBody),
+		OnSuccess: b.OnSuccess,
+		OnFailure: b.OnFailure,
+	}
+
 	return b.bulkIndexer.Add(context.Background(), item)
 }
 
 type MetricHandler struct {
 	bulkIndexer *BulkIndexerWrapper
+	options     SpotifyIngestOptions
 }
 
-func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, error) {
+func NewMetricHandler(logstashHost string, logstashPort int, options SpotifyIngestOptions) (MetricHandler, error) {
 	retryBackoff := backoff.NewExponentialBackOff()
 
 	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
@@ -69,19 +81,12 @@ func NewMetricHandler(logstashHost string, logstashPort int) (MetricHandler, err
 
 }
 
-func (metric *MetricHandler) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
+func (wrapper *BulkIndexerWrapper) OnSuccess(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem) {
 	logger.Log(fmt.Sprintf("Added item with id %s (index %s) to event log", item.DocumentID, item.Index), logger.Trace)
 }
 
-func (metric *MetricHandler) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
+func (wrapper *BulkIndexerWrapper) OnFailure(ctx context.Context, item esutil.BulkIndexerItem, resp esutil.BulkIndexerResponseItem, err error) {
 	logger.Log(fmt.Sprintf("Failed to add item with ID %s (index %s), err %s to event log", item.DocumentID, item.Index, err.Error()), logger.Error)
-}
-
-func (metric *MetricHandler) BiCtx() IndexItemContext {
-	return IndexItemContext{
-		OnSuccess: metric.OnSuccess,
-		OnFailure: metric.OnFailure,
-	}
 }
 
 func (m *MetricHandler) Close() error {
@@ -97,8 +102,8 @@ func (m *MetricHandler) Close() error {
 	return errors.New("olaa")
 }
 
-func (m *MetricHandler) AddApiRequestIndex(url string, reqBody string) error {
-	return m.bulkIndexer.Add(newApiRequestIndex(m.BiCtx(), url, reqBody))
+func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody string) error {
+	return m.bulkIndexer.Add(newApiRequestIndex(method, url, reqBody))
 }
 
 type IndexItemContext struct {
@@ -106,32 +111,19 @@ type IndexItemContext struct {
 	OnFailure func(context.Context, esutil.BulkIndexerItem, esutil.BulkIndexerResponseItem, error)
 }
 
-func newSongIndex(ctx IndexItemContext, id string, spotifyId string, reqBody string) esutil.BulkIndexerItem {
+func newSongIndexBody(id string, spotifyId string, reqBody string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["spotifyId"] = spotifyId
 	data["reqBody"] = reqBody
-	body, _ := json.Marshal(data)
 
-	return esutil.BulkIndexerItem{
-		Action:     "index",
-		DocumentID: id,
-		Body:       bytes.NewReader(body),
-		OnSuccess:  ctx.OnSuccess,
-		OnFailure:  ctx.OnFailure,
-	}
+	return data
 }
 
-func newApiRequestIndex(ctx IndexItemContext, url string, reqBody string) esutil.BulkIndexerItem {
+func newApiRequestIndex(method string, url string, reqBody string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["url"] = url
+	data["method"] = method
 	data["reqBody"] = reqBody
-	body, _ := json.Marshal(data)
 
-	return esutil.BulkIndexerItem{
-		Index:     "spotify",
-		Action:    "index",
-		Body:      bytes.NewReader(body),
-		OnSuccess: ctx.OnSuccess,
-		OnFailure: ctx.OnFailure,
-	}
+	return data
 }

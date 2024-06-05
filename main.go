@@ -56,7 +56,7 @@ func main() {
 
 	logStashHostname := utils.MustGetEnv("logstash_hostname")
 	logStashPort := utils.MustGetEnvInt("logstash_port")
-	metricHandler, err := NewMetricHandler(logStashHostname, logStashPort)
+	metricHandler, err := NewMetricHandler(logStashHostname, logStashPort, args)
 	if err != nil {
 		logger.Log("Failed to make metrics handler", logger.Error)
 		panic(err)

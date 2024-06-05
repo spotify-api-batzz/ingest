@@ -189,7 +189,7 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 
 	sanitizedBody := scrubSensitiveData(bodyString)
 	sanitizedUrl := scrubSensitiveData(url)
-	err = api.Metrics.AddApiRequestIndex(sanitizedUrl, sanitizedBody)
+	err = api.Metrics.AddApiRequestIndex(method, sanitizedUrl, sanitizedBody)
 	if err != nil {
 		return []byte{}, err
 	}
