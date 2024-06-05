@@ -126,12 +126,18 @@ type Scrubber interface {
 type QueryParamScrubber struct{}
 
 func (q *QueryParamScrubber) Is(value string) bool {
-	data, err := url.ParseQuery(value)
-	if err != nil {
+	chunks := strings.Split(value, "&")
+	if len(chunks) == 1 {
 		return false
 	}
 
-	return len(data) != 0
+	for _, chunk := range chunks {
+		if !strings.Contains(chunk, "=") {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (q *QueryParamScrubber) Scrub(value string) string {
@@ -141,7 +147,6 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 	}
 
 	keysToScrub := []string{"refresh_token"}
-	fmt.Println(params)
 	for _, key := range keysToScrub {
 		if params.Has(key) {
 			params.Set(key, convertToAsterisks(params.Get(key)))
@@ -149,7 +154,6 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 	}
 
 	str, _ := url.QueryUnescape(params.Encode())
-	fmt.Println(str)
 
 	return str
 }
