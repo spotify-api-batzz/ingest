@@ -10,6 +10,36 @@ func NewStringArgs() StringArgs {
 	}
 }
 
+// Diff computes the symmetric difference between the UniqueMap of the current instance and another StringArgs instance.
+func (p *StringArgs) Diff(otherArgs StringArgs) StringArgs {
+	newStringArgs := NewStringArgs()
+
+	// Add keys from p that are not in otherArgs
+	for id := range p.UniqueMap {
+		if _, exists := otherArgs.UniqueMap[id]; !exists {
+			newStringArgs.Add(id)
+		}
+	}
+
+	// Add keys from otherArgs that are not in p
+	for id := range otherArgs.UniqueMap {
+		if _, exists := p.UniqueMap[id]; !exists {
+			newStringArgs.Add(id)
+		}
+	}
+
+	return newStringArgs
+}
+
+func (p *StringArgs) ToString() []string {
+	var ids []string
+	for id := range p.UniqueMap {
+		ids = append(ids, id)
+	}
+
+	return ids
+}
+
 func (p *StringArgs) Add(value string) {
 	if _, ok := p.UniqueMap[value]; !ok {
 		p.UniqueMap[value] = value

@@ -2,52 +2,40 @@ package models
 
 import (
 	"spotify/utils"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type Song struct {
-	ID        string    `db:"id"`
-	SpotifyID string    `db:"spotify_id"`
-	AlbumID   string    `db:"album_id"`
-	ArtistID  string    `db:"artist_id"`
-	Name      string    `db:"name"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        string     `db:"id"`
+	SpotifyID string     `db:"spotify_id"`
+	AlbumID   string     `db:"album_id"`
+	ArtistID  string     `db:"artist_id"`
+	Name      string     `db:"name"`
+	CreatedAt utils.Time `db:"created_at"`
+	UpdatedAt utils.Time `db:"updated_at"`
 
 	NeedsUpdate bool
 
 	Album
 }
 
-func NewSong(name string, spotifyID string, albumID string, artistID string) Song {
+func (r Song) Identifier() string {
+	return r.ID
+}
+
+func NewSong(name string, spotifyID string, albumID string, artistID string, needsUpdate bool) Song {
 	return Song{
-		ID:        uuid.New().String(),
+		ID:        utils.GenerateUUID(),
 		Name:      name,
 		SpotifyID: spotifyID,
 		ArtistID:  artistID,
 		AlbumID:   albumID,
+		CreatedAt: utils.NewTime(),
+		UpdatedAt: utils.NewTime(),
+
+		NeedsUpdate: needsUpdate,
 	}
 }
 
 func (r *Song) TableName() string {
 	return "songs"
-}
-
-func (r *Song) TableColumns() []string {
-	return []string{"id", "spotify_id", "album_id", "artist_id", "name", "created_at", "updated_at"}
-}
-
-func (s *Song) ToSlice() []interface{} {
-	slice := make([]interface{}, 7)
-	slice[0] = s.ID
-	slice[1] = s.SpotifyID
-	slice[2] = s.AlbumID
-	slice[3] = s.ArtistID
-	slice[4] = s.Name
-	slice[5] = utils.Now()
-	slice[6] = utils.Now()
-
-	return slice
 }

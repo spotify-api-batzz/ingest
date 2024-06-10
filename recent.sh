@@ -1,6 +1,6 @@
 #!/bin/bash
 cd ~/spotify/ingest
-# up until 11/2/2023 this was running recent ingest only for batu and gareth.. retard
+# up until 11/2/2023 this was running recent ingest only for batu and gareth.. silly
 source .env
 IFS=',' read -ra ADDR <<< "${users}"
 for var in "${ADDR[@]}"; do

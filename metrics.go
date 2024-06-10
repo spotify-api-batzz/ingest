@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"spotify/ingest"
 	"spotify/utils"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 
 type BulkIndexerWrapper struct {
 	bulkIndexer   esutil.BulkIndexer
-	ingestContext SpotifyIngestContext
+	ingestContext ingest.SpotifyIngestContext
 }
 
 func (b *BulkIndexerWrapper) Add(body map[string]interface{}) error {
@@ -45,7 +46,7 @@ type MetricHandler struct {
 	bulkIndexer *BulkIndexerWrapper
 }
 
-func NewMetricHandler(logstashHost string, logstashPort int, context SpotifyIngestContext) (MetricHandler, error) {
+func NewMetricHandler(logstashHost string, logstashPort int, context ingest.SpotifyIngestContext) (MetricHandler, error) {
 	retryBackoff := backoff.NewExponentialBackOff()
 
 	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
@@ -72,9 +73,10 @@ func NewMetricHandler(logstashHost string, logstashPort int, context SpotifyInge
 	}
 
 	bi, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
-		Index:  "spotfy_api", // The default index name
-		Client: es,           // The Elasticsearch client
+		Index:  "spotfy_api",
+		Client: es,
 	})
+
 	if err != nil {
 		return MetricHandler{}, err
 	}
@@ -98,10 +100,14 @@ func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody st
 	return m.bulkIndexer.Add(newApiRequestIndexBody(method, url, reqBody))
 }
 
-func newSongIndexBody(spotifyId string, reqBody string) map[string]interface{} {
+func (m *MetricHandler) AddNewSongIndex(spotifyId string, songName string) error {
+	return m.bulkIndexer.Add(newSongIndexBody(spotifyId, songName))
+}
+
+func newSongIndexBody(spotifyId string, songName string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["spotifyId"] = spotifyId
-	data["reqBody"] = reqBody
+	data["songName"] = songName
 
 	return data
 }

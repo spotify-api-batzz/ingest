@@ -2,45 +2,28 @@ package models
 
 import (
 	"spotify/utils"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type User struct {
-	ID        string    `db:"id"`
-	Username  string    `db:"username"`
-	Password  string    `db:"password"`
-	SpotifyID string    `db:"spotify_id"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
+	ID        string     `db:"id"`
+	Username  string     `db:"username"`
+	Password  string     `db:"password"`
+	SpotifyID string     `db:"spotify_id"`
+	CreatedAt utils.Time `db:"created_at"`
+	UpdatedAt utils.Time `db:"updated_at"`
 }
 
 func (r *User) TableName() string {
 	return "users"
 }
 
-func (r *User) TableColumns() []string {
-	return []string{"id", "username", "password", "spotify_id", "created_at", "updated_at"}
-}
-
 func NewUser(username string, password string, spotifyID string) User {
 	return User{
-		ID:        uuid.New().String(),
+		ID:        utils.GenerateUUID(),
 		SpotifyID: spotifyID,
 		Username:  username,
 		Password:  password,
+		CreatedAt: utils.NewTime(),
+		UpdatedAt: utils.NewTime(),
 	}
-}
-
-func (u *User) ToSlice() []interface{} {
-	slice := make([]interface{}, 6)
-	slice[0] = u.ID
-	slice[1] = u.Username
-	slice[2] = u.Password
-	slice[3] = u.SpotifyID
-	slice[4] = utils.Now()
-	slice[5] = utils.Now()
-
-	return slice
 }
