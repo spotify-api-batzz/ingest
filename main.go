@@ -5,6 +5,8 @@ import (
 	"log"
 	"strings"
 
+	"spotify/api"
+	"spotify/database"
 	"spotify/ingest"
 	"spotify/utils"
 
@@ -29,7 +31,7 @@ func main() {
 
 	logger.Setup(logger.Debug, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
 
-	database := Database{}
+	database := database.Database{}
 	err = database.Connect()
 	if err != nil {
 		logger.Log("Failed to connect to database", logger.Error)
@@ -38,7 +40,7 @@ func main() {
 
 	database.StartTX()
 
-	spotifyAPIAuth := SpotifyAPIAuth{
+	spotifyAPIAuth := api.SpotifyAPIAuth{
 		Secret:       utils.MustGetEnv("secret"),
 		ClientID:     utils.MustGetEnv("clientID"),
 		RefreshToken: utils.MustGetEnv(fmt.Sprintf("refresh_%s", args.UserID)),
@@ -53,21 +55,27 @@ func main() {
 		panic(err)
 	}
 
-	api := NewSpotifyAPI("https://accounts.spotify.com/", &metricHandler, spotifyAPIAuth, NewAPIOptions(3))
+	api := api.NewSpotifyAPI("https://accounts.spotify.com/", &metricHandler, spotifyAPIAuth, api.NewAPIOptions(3))
 	logger.Log(fmt.Sprintf("Beginning spotify data ingest, user id %s.", args.UserID), logger.Info)
 
 	err = Refresh(&api)
 	if err != nil {
 		logger.Log(err.Error(), logger.Error)
+		metricHandler.AddNewFailure("REFRESH_API", err)
 		panic(err)
 	}
 
-	spotify := ingest.BootstrapSpotifyingest(&database, &api, args)
+	preingest := ingest.NewPreIngest(&database, args.EnvUsers)
+
+	spotify := ingest.BootstrapSpotifyingest(&database, &api, args, &preingest, &metricHandler)
 	err = spotify.Ingest()
 	if err != nil {
 		database.Rollback()
+		metricHandler.AddNewFailure("INGEST", err)
 		panic(err)
 	}
+
+	// fmt.Println(spotify.Stats)
 
 	// err = metricHandler.Close()
 	// if err != nil {
@@ -75,5 +83,5 @@ func main() {
 	// 	panic(err)
 	// }
 
-	database.Commit()
+	database.Rollback()
 }

@@ -2,20 +2,32 @@ package ingest
 
 import (
 	"database/sql"
+	"spotify/api"
 	"spotify/models"
-	"spotify/types"
 	"spotify/utils"
 
 	"github.com/batzz-00/goutils/logger"
 )
 
+type PreIngestDatabase interface {
+	Create(model models.Model, values []interface{}) error
+	FetchUsersBySpotifyIds(names []interface{}) ([]models.User, error)
+	FetchArtistsBySpotifyID(spotifyIDs []interface{}) ([]models.Artist, error)
+	FetchArtistBySpotifyID(spotifyID string) (models.Artist, error)
+}
+
 type PreIngest struct {
-	database types.IDatabase
+	database PreIngestDatabase
 	users    []string
 }
 
-func NewPreIngest(db types.IDatabase, users []string) types.IPreIngest {
-	return &PreIngest{
+type IPreIngest interface {
+	EnsureBaseDataExists() (string, error)
+	GetUserUUID(usernameToReturn string, user api.MeResponse) (string, error)
+}
+
+func NewPreIngest(db PreIngestDatabase, users []string) PreIngest {
+	return PreIngest{
 		users:    users,
 		database: db,
 	}
@@ -43,7 +55,7 @@ func (ingest *PreIngest) EnsureBaseDataExists() (string, error) {
 	return artist.ID, nil
 }
 
-func (ingest *PreIngest) GetUserUUID(usernameToReturn string, user types.MeResponse) (string, error) {
+func (ingest *PreIngest) GetUserUUID(usernameToReturn string, user api.MeResponse) (string, error) {
 	baseUsers := []interface{}{}
 	for _, user := range ingest.users {
 		baseUsers = append(baseUsers, user)

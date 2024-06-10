@@ -2,16 +2,15 @@ package ingest
 
 import (
 	"fmt"
+	"spotify/api"
 	"spotify/models"
-	"spotify/types"
 	"spotify/utils"
 
 	"github.com/batzz-00/goutils/logger"
 )
 
-func (spotify *SpotifyIngest) PopulateArtists(songs map[string]types.TopTracksResponse, artists map[string]types.TopArtistsResponse, recents types.RecentlyPlayedResponse) ([]models.Artist, error) {
+func (spotify *SpotifyIngest) PopulateArtists(songs map[string]api.TopTracksResponse, artists map[string]api.TopArtistsResponse, recents api.RecentlyPlayedResponse) ([]models.Artist, error) {
 	// Songs to attempt to fetch from DB
-
 	artistSpotifyIDs := utils.NewStringArgs()
 	for _, resp := range songs {
 		for _, song := range resp.Items {
@@ -69,14 +68,16 @@ Outer:
 	}
 
 	for _, artist := range apiArtists {
-		dbArtists = append(dbArtists, models.NewArtist(artist.Name, artist.ID, true))
+		artistModel := models.NewArtist(artist.Name, artist.ID, true)
+		dbArtists = append(dbArtists, artistModel)
+		spotify.OnNewArtist(&artistModel, true)
 	}
 
 	return dbArtists, nil
 }
 
-func (spotify *SpotifyIngest) Artists() (map[string]types.TopArtistsResponse, error) {
-	artistsResp := make(map[string]types.TopArtistsResponse)
+func (spotify *SpotifyIngest) Artists() (map[string]api.TopArtistsResponse, error) {
+	artistsResp := make(map[string]api.TopArtistsResponse)
 
 	for _, period := range spotify.Times {
 		logger.Log(fmt.Sprintf("Processing %s_term time range for artists endpoint", period), logger.Debug)

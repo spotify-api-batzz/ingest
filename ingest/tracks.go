@@ -2,15 +2,15 @@ package ingest
 
 import (
 	"fmt"
+	"spotify/api"
 	"spotify/models"
-	"spotify/types"
 	"spotify/utils"
 
 	"github.com/batzz-00/goutils/logger"
 )
 
-func (spotify *SpotifyIngest) Tracks() (map[string]types.TopTracksResponse, error) {
-	topTrackResp := make(map[string]types.TopTracksResponse)
+func (spotify *SpotifyIngest) Tracks() (map[string]api.TopTracksResponse, error) {
+	topTrackResp := make(map[string]api.TopTracksResponse)
 
 	for _, period := range spotify.Times {
 		logger.Log(fmt.Sprintf("Processing %s_term time range for tracks endpoint", period), logger.Debug)
@@ -24,7 +24,7 @@ func (spotify *SpotifyIngest) Tracks() (map[string]types.TopTracksResponse, erro
 	return topTrackResp, nil
 }
 
-func (spotify *SpotifyIngest) PopulateTracks(songs map[string]types.TopTracksResponse, recents types.RecentlyPlayedResponse) ([]models.Song, error) {
+func (spotify *SpotifyIngest) PopulateTracks(songs map[string]api.TopTracksResponse, recents api.RecentlyPlayedResponse) ([]models.Song, error) {
 	// Songs to attempt to fetch from DB
 	songSpotifyIDs := utils.NewStringArgs()
 	for _, resp := range songs {
@@ -46,6 +46,7 @@ func (spotify *SpotifyIngest) PopulateTracks(songs map[string]types.TopTracksRes
 	// Songs to attempt to fetch from API
 	dbSongIds := utils.NewStringArgsFromModel(dbSongs)
 	diffedIds := songSpotifyIDs.Diff(dbSongIds)
+	// TODO: add unprocessed songs
 	songsToFetch := diffedIds.ToString()
 
 	if len(songsToFetch) == 0 {
@@ -60,6 +61,8 @@ func (spotify *SpotifyIngest) PopulateTracks(songs map[string]types.TopTracksRes
 
 	for _, song := range apiSongs {
 		newSong := models.NewSong(song.Name, song.ID, song.Album.ID, song.Artists[0].ID, true)
+		spotify.OnNewSong(&newSong, true)
+		spotify.MetricHandler.AddNewSongIndex(song.ID, song.Name)
 		dbSongs = append(dbSongs, newSong)
 	}
 

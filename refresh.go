@@ -2,16 +2,22 @@ package main
 
 import (
 	"fmt"
-	"spotify/types"
+	"spotify/api"
 
 	"github.com/batzz-00/goutils/logger"
 )
 
+type RefreshableOptions struct {
+	RefreshRetries int
+}
+
 type Refreshable interface {
+	Authorize(code string) error
+	Options() api.APIOptions
 	Refresh() error
 }
 
-func Refresh(refreshable types.API) error {
+func Refresh(refreshable Refreshable) error {
 	opts := refreshable.Options()
 	logger.Log("Refreshing user access token", logger.Info)
 	err := refresh(refreshable, 0, opts.RefreshRetries)

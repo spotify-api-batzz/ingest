@@ -1,4 +1,4 @@
-package main
+package database
 
 import (
 	"context"
@@ -12,11 +12,6 @@ import (
 	stdlib "github.com/jackc/pgx/v4/stdlib"
 	"github.com/jmoiron/sqlx"
 )
-
-// type IDatabase2 interface {
-// 	Create(model models.Model, values []interface{}) error
-// 	FetchSongsBySpotifyID(spotifyID string) ([]models.Song, err)
-// )
 
 type Database struct {
 	DB *sqlx.DB

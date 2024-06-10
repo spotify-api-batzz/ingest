@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"spotify/types"
+
 	"spotify/utils"
 	"strings"
 )
@@ -33,18 +33,26 @@ type RefreshResponse struct {
 	Access string `json:"access_token"`
 }
 
-func NewAPIOptions(refreshRetries int) types.APIOptions {
-	return types.APIOptions{
+func NewAPIOptions(refreshRetries int) APIOptions {
+	return APIOptions{
 		RefreshRetries: refreshRetries,
 	}
+}
+
+type APIOptions struct {
+	RefreshRetries int
+}
+
+func (a *APIOptions) Retries() int {
+	return a.RefreshRetries
 }
 
 type spotifyAPI struct {
 	BaseURL string
 	Auth    SpotifyAPIAuth
 	Client  http.Client
-	Metrics types.IMetricHandler
-	opts    types.APIOptions
+	Metrics MetricHandler
+	opts    APIOptions
 }
 
 type SpotifyAPIAuth struct {
@@ -54,7 +62,11 @@ type SpotifyAPIAuth struct {
 	AccessToken  string
 }
 
-func NewSpotifyAPI(baseURL string, Metrics types.IMetricHandler, auth SpotifyAPIAuth, options types.APIOptions) spotifyAPI {
+type MetricHandler interface {
+	AddApiRequestIndex(method string, url string, reqBody string) error
+}
+
+func NewSpotifyAPI(baseURL string, Metrics MetricHandler, auth SpotifyAPIAuth, options APIOptions) spotifyAPI {
 	return spotifyAPI{
 		BaseURL: baseURL,
 		Client:  http.Client{},
@@ -64,7 +76,7 @@ func NewSpotifyAPI(baseURL string, Metrics types.IMetricHandler, auth SpotifyAPI
 	}
 }
 
-func (api *spotifyAPI) Options() types.APIOptions {
+func (api *spotifyAPI) Options() APIOptions {
 	return api.opts
 }
 
@@ -123,40 +135,40 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 	return bytes, nil
 }
 
-func (api *spotifyAPI) Me() (types.MeResponse, error) {
+func (api *spotifyAPI) Me() (MeResponse, error) {
 	bytes, err := api.Request("GET", "https://api.spotify.com/v1/me", nil)
 	if err != nil {
-		return types.MeResponse{}, err
+		return MeResponse{}, err
 	}
 
-	meResp := types.MeResponse{}
+	meResp := MeResponse{}
 	err = json.Unmarshal(bytes, &meResp)
 	if err != nil {
-		return types.MeResponse{}, err
+		return MeResponse{}, err
 	}
 
 	return meResp, nil
 }
 
-func (api *spotifyAPI) RecentlyPlayedByUser() (types.RecentlyPlayedResponse, error) {
+func (api *spotifyAPI) RecentlyPlayedByUser() (RecentlyPlayedResponse, error) {
 	data := url.Values{}
 	data.Set("limit", "50")
 	url := fmt.Sprintf("https://api.spotify.com/v1/me/player/recently-played?%s", data.Encode())
 	bytes, err := api.Request("GET", url, nil)
 	if err != nil {
-		return types.RecentlyPlayedResponse{}, err
+		return RecentlyPlayedResponse{}, err
 	}
 
-	recentlyPlayedResp := types.RecentlyPlayedResponse{}
+	recentlyPlayedResp := RecentlyPlayedResponse{}
 	err = json.Unmarshal(bytes, &recentlyPlayedResp)
 	if err != nil {
-		return types.RecentlyPlayedResponse{}, err
+		return RecentlyPlayedResponse{}, err
 	}
 
 	return recentlyPlayedResp, nil
 }
 
-func (api *spotifyAPI) TopArtistsForUser(period string) (types.TopArtistsResponse, error) {
+func (api *spotifyAPI) TopArtistsForUser(period string) (TopArtistsResponse, error) {
 	data := url.Values{}
 	data.Set("time_range", period)
 	data.Set("limit", "50")
@@ -164,19 +176,19 @@ func (api *spotifyAPI) TopArtistsForUser(period string) (types.TopArtistsRespons
 	url := fmt.Sprintf("https://api.spotify.com/v1/me/top/artists?%s", data.Encode())
 	bytes, err := api.Request("GET", url, nil)
 	if err != nil {
-		return types.TopArtistsResponse{}, err
+		return TopArtistsResponse{}, err
 	}
 
-	topPlayedResp := types.TopArtistsResponse{}
+	topPlayedResp := TopArtistsResponse{}
 	err = json.Unmarshal(bytes, &topPlayedResp)
 	if err != nil {
-		return types.TopArtistsResponse{}, err
+		return TopArtistsResponse{}, err
 	}
 
 	return topPlayedResp, nil
 }
 
-func (api *spotifyAPI) TopTracksForUser(period string) (types.TopTracksResponse, error) {
+func (api *spotifyAPI) TopTracksForUser(period string) (TopTracksResponse, error) {
 	data := url.Values{}
 	data.Set("time_range", period)
 	data.Set("limit", "50")
@@ -184,21 +196,21 @@ func (api *spotifyAPI) TopTracksForUser(period string) (types.TopTracksResponse,
 	url := fmt.Sprintf("https://api.spotify.com/v1/me/top/tracks?%s", data.Encode())
 	bytes, err := api.Request("GET", url, nil)
 	if err != nil {
-		return types.TopTracksResponse{}, err
+		return TopTracksResponse{}, err
 	}
 
-	topPlayedResp := types.TopTracksResponse{}
+	topPlayedResp := TopTracksResponse{}
 	err = json.Unmarshal(bytes, &topPlayedResp)
 	if err != nil {
-		return types.TopTracksResponse{}, err
+		return TopTracksResponse{}, err
 	}
 
 	return topPlayedResp, nil
 }
 
-func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]types.Artist, error) {
+func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]Artist, error) {
 	chunkedIDs := utils.ChunkSlice(ids, 50)
-	artistList := []types.Artist{}
+	artistList := []Artist{}
 
 	for _, chunk := range chunkedIDs {
 		data := url.Values{}
@@ -209,7 +221,7 @@ func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]types.Artist, error) 
 			return nil, err
 		}
 
-		artistsResp := types.ArtistsResponse{}
+		artistsResp := ArtistsResponse{}
 		err = json.Unmarshal(bytes, &artistsResp)
 		if err != nil {
 			return nil, err
@@ -221,9 +233,9 @@ func (api *spotifyAPI) ArtistsBySpotifyID(ids []string) ([]types.Artist, error) 
 	return artistList, nil
 }
 
-func (api *spotifyAPI) TracksBySpotifyID(ids []string) ([]types.Song, error) {
+func (api *spotifyAPI) TracksBySpotifyID(ids []string) ([]Song, error) {
 	chunkedIDs := utils.ChunkSlice(ids, 50)
-	trackList := []types.Song{}
+	trackList := []Song{}
 
 	for _, chunk := range chunkedIDs {
 		data := url.Values{}
@@ -235,7 +247,7 @@ func (api *spotifyAPI) TracksBySpotifyID(ids []string) ([]types.Song, error) {
 			return nil, err
 		}
 
-		tracksResp := types.TracksResponse{}
+		tracksResp := TracksResponse{}
 		err = json.Unmarshal(bytes, &tracksResp)
 		if err != nil {
 			return nil, err
@@ -247,9 +259,9 @@ func (api *spotifyAPI) TracksBySpotifyID(ids []string) ([]types.Song, error) {
 	return trackList, nil
 }
 
-func (api *spotifyAPI) AlbumsBySpotifyID(ids []string) ([]types.Album, error) {
+func (api *spotifyAPI) AlbumsBySpotifyID(ids []string) ([]Album, error) {
 	chunkedIDs := utils.ChunkSlice(ids, 20)
-	albumList := []types.Album{}
+	albumList := []Album{}
 
 	// #TODO: Fire these in parallel
 	for _, chunk := range chunkedIDs {
@@ -262,18 +274,18 @@ func (api *spotifyAPI) AlbumsBySpotifyID(ids []string) ([]types.Album, error) {
 	return albumList, nil
 }
 
-func (api *spotifyAPI) albumsBySpotifyID(ids []string) (types.AlbumResponse, error) {
+func (api *spotifyAPI) albumsBySpotifyID(ids []string) (AlbumResponse, error) {
 	data := url.Values{}
 	data.Set("ids", strings.Join(ids, ","))
 	bytes, err := api.Request("GET", fmt.Sprintf("https://api.spotify.com/v1/albums?%s", data.Encode()), nil)
 	if err != nil {
-		return types.AlbumResponse{}, err
+		return AlbumResponse{}, err
 	}
 
-	albumResp := types.AlbumResponse{}
+	albumResp := AlbumResponse{}
 	err = json.Unmarshal(bytes, &albumResp)
 	if err != nil {
-		return types.AlbumResponse{}, err
+		return AlbumResponse{}, err
 	}
 
 	return albumResp, nil

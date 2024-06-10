@@ -1,10 +1,9 @@
-package mocks
+package api
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"spotify/types"
 	"spotify/utils"
 )
 
@@ -27,85 +26,85 @@ func NewMockSpotifyApi(test string) MockSpotifyAPI {
 	}
 }
 
-func (mockAPI *MockSpotifyAPI) Me() (types.MeResponse, error) {
+func (mockAPI *MockSpotifyAPI) Me() (MeResponse, error) {
 	data := mockAPI.loader("get-me")
 
-	meResponse := types.MeResponse{}
+	meResponse := MeResponse{}
 	err := json.Unmarshal(data, &meResponse)
 	if err != nil {
-		return types.MeResponse{}, err
+		return MeResponse{}, err
 	}
 
 	return meResponse, nil
 }
 
-func (mockAPI *MockSpotifyAPI) RecentlyPlayedByUser() (types.RecentlyPlayedResponse, error) {
+func (mockAPI *MockSpotifyAPI) RecentlyPlayedByUser() (RecentlyPlayedResponse, error) {
 	data := mockAPI.loader("get-recently-played")
 
-	recentlyPlayedResponse := types.RecentlyPlayedResponse{}
+	recentlyPlayedResponse := RecentlyPlayedResponse{}
 	err := json.Unmarshal(data, &recentlyPlayedResponse)
 	if err != nil {
-		return types.RecentlyPlayedResponse{}, err
+		return RecentlyPlayedResponse{}, err
 	}
 
 	return recentlyPlayedResponse, nil
 }
 
-func (mockAPI *MockSpotifyAPI) TopArtistsForUser(period string) (types.TopArtistsResponse, error) {
+func (mockAPI *MockSpotifyAPI) TopArtistsForUser(period string) (TopArtistsResponse, error) {
 	data := mockAPI.loader(fmt.Sprintf("get-top-artists-%s", period))
 
-	topArtistsResponse := types.TopArtistsResponse{}
+	topArtistsResponse := TopArtistsResponse{}
 	err := json.Unmarshal(data, &topArtistsResponse)
 	if err != nil {
-		return types.TopArtistsResponse{}, err
+		return TopArtistsResponse{}, err
 	}
 
 	return topArtistsResponse, nil
 }
 
-func (mockAPI *MockSpotifyAPI) TopTracksForUser(period string) (types.TopTracksResponse, error) {
+func (mockAPI *MockSpotifyAPI) TopTracksForUser(period string) (TopTracksResponse, error) {
 	data := mockAPI.loader(fmt.Sprintf("get-top-tracks-%s", period))
 
-	topTracksResponse := types.TopTracksResponse{}
+	topTracksResponse := TopTracksResponse{}
 	err := json.Unmarshal(data, &topTracksResponse)
 	if err != nil {
-		return types.TopTracksResponse{}, err
+		return TopTracksResponse{}, err
 	}
 
 	return topTracksResponse, nil
 }
 
-func (mockAPI *MockSpotifyAPI) TracksBySpotifyID(ids []string) ([]types.Song, error) {
+func (mockAPI *MockSpotifyAPI) TracksBySpotifyID(ids []string) ([]Song, error) {
 	data := mockAPI.loader("get-tracks")
 
-	tracksResponse := types.TracksResponse{}
+	tracksResponse := TracksResponse{}
 	err := json.Unmarshal(data, &tracksResponse)
 	if err != nil {
-		return []types.Song{}, err
+		return []Song{}, err
 	}
 
 	return tracksResponse.Tracks, nil
 }
 
-func (mockAPI *MockSpotifyAPI) ArtistsBySpotifyID(ids []string) ([]types.Artist, error) {
+func (mockAPI *MockSpotifyAPI) ArtistsBySpotifyID(ids []string) ([]Artist, error) {
 	data := mockAPI.loader("get-artists")
 
-	artistResponse := types.ArtistsResponse{}
+	artistResponse := ArtistsResponse{}
 	err := json.Unmarshal(data, &artistResponse)
 	if err != nil {
-		return []types.Artist{}, err
+		return []Artist{}, err
 	}
 
 	return artistResponse.Artists, nil
 }
 
-func (mockAPI *MockSpotifyAPI) AlbumsBySpotifyID(ids []string) ([]types.Album, error) {
+func (mockAPI *MockSpotifyAPI) AlbumsBySpotifyID(ids []string) ([]Album, error) {
 	data := mockAPI.loader("get-albums")
 
-	albumResponse := types.AlbumResponse{}
+	albumResponse := AlbumResponse{}
 	err := json.Unmarshal(data, &albumResponse)
 	if err != nil {
-		return []types.Album{}, err
+		return []Album{}, err
 	}
 
 	return albumResponse.Albums, nil
@@ -115,8 +114,8 @@ func (mockAPI *MockSpotifyAPI) Authorize(code string) error {
 	return nil
 }
 
-func (mockAPI *MockSpotifyAPI) Options() types.APIOptions {
-	return types.APIOptions{
+func (mockAPI *MockSpotifyAPI) Options() APIOptions {
+	return APIOptions{
 		RefreshRetries: 3,
 	}
 }

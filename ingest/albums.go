@@ -2,14 +2,14 @@ package ingest
 
 import (
 	"fmt"
+	"spotify/api"
 	"spotify/models"
-	"spotify/types"
 	"spotify/utils"
 
 	"github.com/batzz-00/goutils/logger"
 )
 
-func (spotify *SpotifyIngest) PopulateAlbums(songs map[string]types.TopTracksResponse, recents types.RecentlyPlayedResponse) ([]models.Album, error) {
+func (spotify *SpotifyIngest) PopulateAlbums(songs map[string]api.TopTracksResponse, recents api.RecentlyPlayedResponse) ([]models.Album, error) {
 	albumSpotifyIDs := utils.NewStringArgs()
 	for _, resp := range songs {
 		for _, song := range resp.Items {
@@ -50,7 +50,10 @@ Outer:
 	}
 
 	for _, album := range apiAlbums {
-		dbAlbums = append(dbAlbums, models.NewAlbum(album.Name, album.ID, album.Artists[0].ID, true))
+		album := models.NewAlbum(album.Name, album.ID, album.Artists[0].ID, true)
+		dbAlbums = append(dbAlbums, album)
+		spotify.OnNewAlbum(&album, true)
+		spotify.MetricHandler.AddNewAlbumIndex(album.ID, album.Name)
 	}
 
 	return dbAlbums, nil

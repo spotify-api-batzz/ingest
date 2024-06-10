@@ -15,6 +15,7 @@ require (
 )
 
 require (
+	github.com/andreyvit/diff v0.0.0-20170406064948-c7f18ee00883 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/elastic/elastic-transport-go/v8 v8.5.0 // indirect
 	github.com/fatih/color v1.10.0 // indirect
@@ -30,6 +31,7 @@ require (
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sergi/go-diff v1.3.1 // indirect
 	go.opentelemetry.io/otel v1.21.0 // indirect
 	go.opentelemetry.io/otel/metric v1.21.0 // indirect
 	go.opentelemetry.io/otel/trace v1.21.0 // indirect

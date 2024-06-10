@@ -1,4 +1,4 @@
-package main
+package metrics
 
 import (
 	"bytes"
@@ -16,13 +16,13 @@ import (
 )
 
 type BulkIndexerWrapper struct {
-	bulkIndexer   esutil.BulkIndexer
-	ingestContext ingest.SpotifyIngestContext
+	bulkIndexer esutil.BulkIndexer
+	context     interface{}
 }
 
 func (b *BulkIndexerWrapper) Add(eventBody interface{}) error {
 	body := make(map[string]interface{})
-	body["ctx"] = b.ingestContext
+	body["ctx"] = b.context
 	body["body"] = eventBody
 	byteBody, _ := json.Marshal(body)
 
@@ -48,7 +48,7 @@ type MetricHandler struct {
 	bulkIndexer *BulkIndexerWrapper
 }
 
-func NewMetricHandler(logstashHost string, logstashPort int, context ingest.SpotifyIngestContext) (MetricHandler, error) {
+func NewMetricHandler(logstashHost string, logstashPort int, context interface{}) (MetricHandler, error) {
 	retryBackoff := backoff.NewExponentialBackOff()
 
 	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
@@ -84,7 +84,7 @@ func NewMetricHandler(logstashHost string, logstashPort int, context ingest.Spot
 	}
 
 	return MetricHandler{
-		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi, ingestContext: context},
+		bulkIndexer: &BulkIndexerWrapper{bulkIndexer: bi, context: context},
 	}, nil
 
 }

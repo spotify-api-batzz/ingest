@@ -2,16 +2,15 @@ package ingest
 
 import (
 	"fmt"
+	"spotify/api"
 	"spotify/models"
 	"spotify/utils"
 	"time"
 
-	"spotify/types"
-
 	"github.com/batzz-00/goutils/logger"
 )
 
-func (spotify *SpotifyIngest) InsertRecentListens(recents types.RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListen) error {
+func (spotify *SpotifyIngest) InsertRecentListens(recents api.RecentlyPlayedResponse, songs []models.Song, existingRecentListens []models.RecentListen) error {
 	recentListenValues := []interface{}{}
 Outer:
 	for _, recentListen := range recents.Items {
@@ -22,6 +21,8 @@ Outer:
 		}
 
 		newRecentListenData := models.NewRecentListen("", spotify.Options.UserID, recentListen.PlayedAt)
+		// TODO: move to an attach song uuid list
+		spotify.OnNewEntityEvent(&newRecentListenData)
 		song, exists := getSongBySpotifyID(songs, recentListen.Track.ID)
 		if exists {
 			newRecentListenData.SongID = song.ID
@@ -47,7 +48,7 @@ Outer:
 	return nil
 }
 
-func (spotify *SpotifyIngest) FetchExistingRecentListens(recents types.RecentlyPlayedResponse) ([]models.RecentListen, error) {
+func (spotify *SpotifyIngest) FetchExistingRecentListens(recents api.RecentlyPlayedResponse) ([]models.RecentListen, error) {
 	recentPlayedAtList := []interface{}{}
 	var earliestRecentlyPlayedAt time.Time
 	for _, recent := range recents.Items {
