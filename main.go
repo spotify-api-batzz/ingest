@@ -23,13 +23,13 @@ import (
 // swap out to a pkg logger
 // more integration test cases (some data in db ^ network errors etc ^ calls to event logging)
 func main() {
-	args := parseArgs()
-	args.EnvUsers = strings.Split(utils.MustGetEnv("users"), ",")
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	args := parseArgs()
+	args.EnvUsers = strings.Split(utils.MustGetEnv("users"), ",")
 
 	logger.Setup(logger.Debug, nil, logger.NewLoggerOptions("2006-01-02 15:04:05"))
 
