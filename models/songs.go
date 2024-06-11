@@ -19,7 +19,7 @@ type Song struct {
 }
 
 func (r Song) Identifier() string {
-	return r.ID
+	return r.SpotifyID
 }
 
 func NewSong(name string, spotifyID string, albumID string, artistID string, needsUpdate bool) Song {
