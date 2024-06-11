@@ -54,8 +54,6 @@ func (spotify *SpotifyIngest) PopulateTracks(songs map[string]api.TopTracksRespo
 		return dbSongs, nil
 	}
 
-	fmt.Println(diffedIds.ToString())
-
 	logger.Log(fmt.Sprintf("Fetching %d songs from spotify api", len(songSpotifyIDs.Args())), logger.Debug)
 	apiSongs, err := spotify.API.TracksBySpotifyID(songsToFetch)
 	if err != nil {

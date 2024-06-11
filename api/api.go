@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -60,6 +59,22 @@ type SpotifyAPIAuth struct {
 	ClientID     string
 	RefreshToken string
 	AccessToken  string
+}
+
+func newBadRespError(code int, body string) *BadRespError {
+	return &BadRespError{
+		Code: code,
+		Body: body,
+	}
+}
+
+type BadRespError struct {
+	Code int
+	Body string
+}
+
+func (b *BadRespError) Error() string {
+	return fmt.Sprintf("got a bad response from the api status code %d, body %s", b.Code, b.Body)
 }
 
 type MetricHandler interface {
@@ -128,9 +143,8 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		return []byte{}, err
 	}
 
-	fmt.Println(string(bytes))
 	if resp.StatusCode != 200 {
-		return []byte{}, errors.New("status code not 200")
+		return []byte{}, newBadRespError(resp.StatusCode, string(bytes))
 	}
 
 	return bytes, nil
