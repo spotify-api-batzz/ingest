@@ -128,6 +128,7 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		return []byte{}, err
 	}
 
+	fmt.Println(string(bytes))
 	if resp.StatusCode != 200 {
 		return []byte{}, errors.New("status code not 200")
 	}
