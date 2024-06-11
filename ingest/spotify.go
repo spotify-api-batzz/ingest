@@ -36,13 +36,6 @@ func (e *EntityMetric) IncrementCount(new bool) {
 	}
 }
 
-type MetricHandler interface {
-	AddNewSongIndex(spotifyId string, songName string) error
-	AddNewAlbumIndex(spotifyId string, albumName string) error
-	// AddNewFailure(failureType string, err error) error
-	AddNewThumbnailIndex(entity string, name string, url string) error
-}
-
 func NewEntityMetric() EntityMetric {
 	return EntityMetric{
 		ProcessedCount: 0,
@@ -100,11 +93,10 @@ type API interface {
 }
 
 type SpotifyIngest struct {
-	Database      IngestDatabase
-	Options       SpotifyIngestOptions
-	API           API
-	MetricHandler MetricHandler
-	Times         []string
+	Database IngestDatabase
+	Options  SpotifyIngestOptions
+	API      API
+	Times    []string
 
 	Stats SpotifyIngestStats
 }
@@ -129,11 +121,10 @@ func NewIngestContext(options SpotifyIngestOptions) SpotifyIngestContext {
 	}
 }
 
-func NewSpotifyIngest(database IngestDatabase, api API, options SpotifyIngestOptions, metricHandler MetricHandler) SpotifyIngest {
+func NewSpotifyIngest(database IngestDatabase, api API, options SpotifyIngestOptions) SpotifyIngest {
 	return SpotifyIngest{
-		Database:      database,
-		API:           api,
-		MetricHandler: metricHandler,
+		Database: database,
+		API:      api,
 
 		Stats:   NewSpotifyIngestStats(),
 		Times:   []string{"short", "medium", "long"},
@@ -424,7 +415,6 @@ func (spotify *SpotifyIngest) InsertThumbnails(songs map[string]api.TopTracksRes
 				logger.Log(fmt.Sprintf("Failed to attach album ID for album %s", song.Album.Name), logger.Warning)
 			}
 			for _, image := range song.Album.Images {
-				spotify.MetricHandler.AddNewThumbnailIndex("Album", song.Album.Name, image.URL)
 				thumbnail := models.NewThumbnail("Album", "", image.URL, image.Height, image.Width)
 				spotify.OnNewEntityEvent(&thumbnail)
 				if exists {
@@ -442,7 +432,6 @@ func (spotify *SpotifyIngest) InsertThumbnails(songs map[string]api.TopTracksRes
 				logger.Log(fmt.Sprintf("Failed to attach artist ID for artist %s", artist.Name), logger.Warning)
 			}
 			for _, image := range artist.Images {
-				spotify.MetricHandler.AddNewThumbnailIndex("Artist", artist.Name, image.URL)
 				thumbnail := models.NewThumbnail("Artist", "", image.URL, image.Height, image.Width)
 				spotify.OnNewEntityEvent(&thumbnail)
 				if exists {
@@ -459,7 +448,6 @@ func (spotify *SpotifyIngest) InsertThumbnails(songs map[string]api.TopTracksRes
 			logger.Log(fmt.Sprintf("Failed to attach album ID for track %s", song.Track.Album.Name), logger.Warning)
 		}
 		for _, image := range song.Track.Album.Images {
-			spotify.MetricHandler.AddNewThumbnailIndex("Album", song.Track.Name, image.URL)
 			thumbnail := models.NewThumbnail("Album", "", image.URL, image.Height, image.Width)
 			spotify.OnNewEntityEvent(&thumbnail)
 			if exists {
@@ -510,7 +498,7 @@ func (spotify *SpotifyIngest) Recents() (api.RecentlyPlayedResponse, error) {
 	return recentlyPlayed, nil
 }
 
-func BootstrapSpotifyingest(database IngestDatabase, api API, preingest *PreIngest, metricHandler MetricHandler, args SpotifyIngestOptions) SpotifyIngest {
+func BootstrapSpotifyingest(database IngestDatabase, api API, preingest *PreIngest, args SpotifyIngestOptions) SpotifyIngest {
 	me, err := api.Me()
 	if err != nil {
 		logger.Log("Failed to fetch Me endpoint", logger.Error)
@@ -539,5 +527,5 @@ func BootstrapSpotifyingest(database IngestDatabase, api API, preingest *PreInge
 		VariousArtistsUUID: variousArtistsId,
 	}
 
-	return NewSpotifyIngest(database, api, options, metricHandler)
+	return NewSpotifyIngest(database, api, options)
 }

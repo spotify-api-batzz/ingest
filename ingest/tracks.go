@@ -62,7 +62,6 @@ func (spotify *SpotifyIngest) PopulateTracks(songs map[string]api.TopTracksRespo
 	for _, song := range apiSongs {
 		newSong := models.NewSong(song.Name, song.ID, song.Album.ID, song.Artists[0].ID, true)
 		spotify.OnNewSong(&newSong, true)
-		spotify.MetricHandler.AddNewSongIndex(song.ID, song.Name)
 		dbSongs = append(dbSongs, newSong)
 	}
 

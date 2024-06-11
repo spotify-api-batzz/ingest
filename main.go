@@ -76,7 +76,7 @@ func main() {
 	}
 
 	preingest := ingest.NewPreIngest(&database, args.EnvUsers)
-	spotify := ingest.BootstrapSpotifyingest(&database, &api, &preingest, &metricHandler, args)
+	spotify := ingest.BootstrapSpotifyingest(&database, &api, &preingest, args)
 	err = spotify.Ingest()
 	if err != nil {
 		database.Rollback()

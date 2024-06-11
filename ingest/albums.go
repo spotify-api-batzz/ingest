@@ -53,7 +53,6 @@ Outer:
 		album := models.NewAlbum(album.Name, album.ID, album.Artists[0].ID, true)
 		dbAlbums = append(dbAlbums, album)
 		spotify.OnNewAlbum(&album, true)
-		spotify.MetricHandler.AddNewAlbumIndex(album.ID, album.Name)
 	}
 
 	return dbAlbums, nil

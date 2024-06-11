@@ -7,7 +7,6 @@ import (
 	"spotify/api"
 	"spotify/database"
 	"spotify/ingest"
-	"spotify/metrics"
 	"spotify/models"
 	"spotify/utils"
 	"testing"
@@ -41,10 +40,10 @@ func TestIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	metricHander := metrics.NewMockMetricHandler()
+	// metricHander := metrics.NewMockMetricHandler()
 
 	preingest := ingest.NewPreIngest(&db, []string{"123"})
-	spotify := ingest.BootstrapSpotifyingest(&db, &api, &preingest, &metricHander, args)
+	spotify := ingest.BootstrapSpotifyingest(&db, &api, &preingest, args)
 	err = spotify.Ingest()
 	if err != nil {
 		t.Fatal(err)

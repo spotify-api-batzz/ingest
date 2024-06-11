@@ -103,24 +103,12 @@ func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody st
 	return m.bulkIndexer.Add(newApiRequestIndexBody(method, url, reqBody))
 }
 
-func (m *MetricHandler) AddNewSongIndex(spotifyId string, songName string) error {
-	return m.bulkIndexer.Add(newCommonEntityBody(spotifyId, "songName", songName))
-}
-
-func (m *MetricHandler) AddNewAlbumIndex(spotifyId string, albumName string) error {
-	return m.bulkIndexer.Add(newCommonEntityBody(spotifyId, "albumName", albumName))
-}
-
-func (m *MetricHandler) AddNewArtistIndex(spotifyId string, artistName string) error {
-	return m.bulkIndexer.Add(newCommonEntityBody(spotifyId, "artistName", artistName))
-}
-
 func (m *MetricHandler) AddNewFailure(failureType string, err error) error {
 	return m.bulkIndexer.Add(newFailureIndexBody(failureType, err))
 }
 
-func (m *MetricHandler) AddNewThumbnailIndex(entity string, name string, url string) error {
-	return m.bulkIndexer.Add(newThumbnailIndexBody(entity, name, url))
+type MetricModel interface {
+	MetricIdentifier() string
 }
 
 func (m *MetricHandler) AddNewModel(model models.Model) {
@@ -139,27 +127,10 @@ func newModel(tableName string, value interface{}) map[string]interface{} {
 	return data
 }
 
-func newThumbnailIndexBody(entity string, name string, url string) map[string]interface{} {
-	data := make(map[string]interface{})
-	data["entity"] = entity
-	data["name"] = name
-	data["url"] = url
-
-	return data
-}
-
 func newFailureIndexBody(failureType string, err error) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["failureType"] = failureType
 	data["err"] = err.Error()
-
-	return data
-}
-
-func newCommonEntityBody(spotifyId string, entityKey string, entityValue string) map[string]interface{} {
-	data := make(map[string]interface{})
-	data["spotifyId"] = spotifyId
-	data[entityKey] = entityValue
 
 	return data
 }
