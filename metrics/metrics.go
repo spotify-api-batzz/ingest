@@ -25,6 +25,7 @@ func (b *BulkIndexerWrapper) Add(eventBody interface{}) error {
 	body := make(map[string]interface{})
 	body["ctx"] = b.context
 	body["body"] = eventBody
+	body["timestamp"] = utils.NewTime().String()
 	byteBody, _ := json.Marshal(body)
 
 	item := esutil.BulkIndexerItem{
@@ -99,6 +100,12 @@ func (m *MetricHandler) Close() error {
 	return nil
 }
 
+const (
+	FAILURE    = "FAILURE"
+	APIREQUEST = "API_REQUEST"
+	ENTITY     = "ENTITY"
+)
+
 func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody string) error {
 	return m.bulkIndexer.Add(newApiRequestIndexBody(method, url, reqBody))
 }
@@ -123,6 +130,7 @@ func newModel(tableName string, value interface{}) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["tableName"] = tableName
 	data["data"] = value
+	data["type"] = ENTITY
 
 	return data
 }
@@ -131,6 +139,7 @@ func newFailureIndexBody(failureType string, err error) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["failureType"] = failureType
 	data["err"] = err.Error()
+	data["type"] = FAILURE
 
 	return data
 }
@@ -140,6 +149,7 @@ func newApiRequestIndexBody(method string, url string, reqBody string) map[strin
 	data["url"] = url
 	data["method"] = method
 	data["reqBody"] = reqBody
+	data["type"] = APIREQUEST
 
 	return data
 }

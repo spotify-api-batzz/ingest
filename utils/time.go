@@ -33,6 +33,10 @@ type Time struct {
 	time.Time
 }
 
+func (t Time) String() string {
+	return t.Format(RFC3339WithoutTimezone)
+}
+
 func (t Time) Value() (driver.Value, error) {
 	return t.Format(RFC3339WithoutTimezone), nil
 }
