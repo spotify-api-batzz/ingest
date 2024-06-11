@@ -510,7 +510,7 @@ func (spotify *SpotifyIngest) Recents() (api.RecentlyPlayedResponse, error) {
 	return recentlyPlayed, nil
 }
 
-func BootstrapSpotifyingest(database IngestDatabase, api API, args SpotifyIngestOptions, preingest *PreIngest, metricHandler MetricHandler) SpotifyIngest {
+func BootstrapSpotifyingest(database IngestDatabase, api API, preingest *PreIngest, metricHandler MetricHandler, args SpotifyIngestOptions) SpotifyIngest {
 	me, err := api.Me()
 	if err != nil {
 		logger.Log("Failed to fetch Me endpoint", logger.Error)

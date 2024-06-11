@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"spotify/ingest"
+	"spotify/models"
 	"spotify/utils"
 	"time"
 
@@ -103,11 +104,15 @@ func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody st
 }
 
 func (m *MetricHandler) AddNewSongIndex(spotifyId string, songName string) error {
-	return m.bulkIndexer.Add(newSongIndexBody(spotifyId, songName))
+	return m.bulkIndexer.Add(newCommonEntityBody(spotifyId, "songName", songName))
 }
 
 func (m *MetricHandler) AddNewAlbumIndex(spotifyId string, albumName string) error {
-	return m.bulkIndexer.Add(newAlbumIndexBody(spotifyId, albumName))
+	return m.bulkIndexer.Add(newCommonEntityBody(spotifyId, "albumName", albumName))
+}
+
+func (m *MetricHandler) AddNewArtistIndex(spotifyId string, artistName string) error {
+	return m.bulkIndexer.Add(newCommonEntityBody(spotifyId, "artistName", artistName))
 }
 
 func (m *MetricHandler) AddNewFailure(failureType string, err error) error {
@@ -118,13 +123,22 @@ func (m *MetricHandler) AddNewThumbnailIndex(entity string, name string, url str
 	return m.bulkIndexer.Add(newThumbnailIndexBody(entity, name, url))
 }
 
-func (m *MetricHandler) AddNewEntity(entity string, name string, url string) error {
-	return m.bulkIndexer.Add(newThumbnailIndexBody(entity, name, url))
+func (m *MetricHandler) AddNewModel(model models.Model) {
+	m.bulkIndexer.Add(newModel(model.TableName(), model))
 }
 
-func (m *MetricHandler) AddIngestFinishedIndex(stats ingest.SpotifyIngestStats) error {
-	return m.bulkIndexer.Add(stats)
+func (m *MetricHandler) AddIngestFinishedIndex(stats ingest.SpotifyIngestStats) {
+	m.bulkIndexer.Add(stats)
 }
+
+func newModel(tableName string, value interface{}) map[string]interface{} {
+	data := make(map[string]interface{})
+	data["tableName"] = tableName
+	data["data"] = value
+
+	return data
+}
+
 func newThumbnailIndexBody(entity string, name string, url string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["entity"] = entity
@@ -142,18 +156,10 @@ func newFailureIndexBody(failureType string, err error) map[string]interface{} {
 	return data
 }
 
-func newAlbumIndexBody(spotifyId string, albumName string) map[string]interface{} {
+func newCommonEntityBody(spotifyId string, entityKey string, entityValue string) map[string]interface{} {
 	data := make(map[string]interface{})
 	data["spotifyId"] = spotifyId
-	data["albumName"] = albumName
-
-	return data
-}
-
-func newSongIndexBody(spotifyId string, songName string) map[string]interface{} {
-	data := make(map[string]interface{})
-	data["spotifyId"] = spotifyId
-	data["songName"] = songName
+	data[entityKey] = entityValue
 
 	return data
 }

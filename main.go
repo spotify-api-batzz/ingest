@@ -8,6 +8,7 @@ import (
 	"spotify/api"
 	"spotify/database"
 	"spotify/ingest"
+	"spotify/metrics"
 	"spotify/utils"
 
 	"github.com/batzz-00/goutils/logger"
@@ -15,11 +16,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// func()
+
 // nice to have:
 // retry api requests baked into network client (remove retry from refesh and refreshable interface )
 // swap out to a pkg logger
 // more integration test cases (some data in db ^ network errors etc ^ calls to event logging)
-
 func main() {
 	args := parseArgs()
 	args.EnvUsers = strings.Split(utils.MustGetEnv("users"), ",")
@@ -49,10 +51,18 @@ func main() {
 	ingestContext := ingest.NewIngestContext(args)
 	logStashHostname := utils.MustGetEnv("logstash_hostname")
 	logStashPort := utils.MustGetEnvInt("logstash_port")
-	metricHandler, err := NewMetricHandler(logStashHostname, logStashPort, ingestContext)
+	metricHandler, err := metrics.NewMetricHandler(logStashHostname, logStashPort, ingestContext)
 	if err != nil {
 		logger.Log("Failed to make metrics handler", logger.Error)
 		panic(err)
+	}
+
+	var addIngestFinishedIndex = metricHandler.AddIngestFinishedIndex
+	var addOnNewEntityIndex = metricHandler.AddNewModel
+
+	args.Events = ingest.SpotifyIngestEvents{
+		OnNewEntity: &addOnNewEntityIndex,
+		OnFinish:    &addIngestFinishedIndex,
 	}
 
 	api := api.NewSpotifyAPI("https://accounts.spotify.com/", &metricHandler, spotifyAPIAuth, api.NewAPIOptions(3))
@@ -66,8 +76,7 @@ func main() {
 	}
 
 	preingest := ingest.NewPreIngest(&database, args.EnvUsers)
-
-	spotify := ingest.BootstrapSpotifyingest(&database, &api, args, &preingest, &metricHandler)
+	spotify := ingest.BootstrapSpotifyingest(&database, &api, &preingest, &metricHandler, args)
 	err = spotify.Ingest()
 	if err != nil {
 		database.Rollback()
@@ -75,13 +84,11 @@ func main() {
 		panic(err)
 	}
 
-	// fmt.Println(spotify.Stats)
-
-	// err = metricHandler.Close()
-	// if err != nil {
-	// 	database.Rollback()
-	// 	panic(err)
-	// }
+	err = metricHandler.Close()
+	if err != nil {
+		database.Rollback()
+		panic(err)
+	}
 
 	database.Rollback()
 }

@@ -44,7 +44,7 @@ func TestIntegration(t *testing.T) {
 	metricHander := metrics.NewMockMetricHandler()
 
 	preingest := ingest.NewPreIngest(&db, []string{"123"})
-	spotify := ingest.BootstrapSpotifyingest(&db, &api, args, &preingest, &metricHander)
+	spotify := ingest.BootstrapSpotifyingest(&db, &api, &preingest, &metricHander, args)
 	err = spotify.Ingest()
 	if err != nil {
 		t.Fatal(err)
