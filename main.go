@@ -90,5 +90,5 @@ func main() {
 		panic(err)
 	}
 
-	database.Rollback()
+	database.Commit()
 }
