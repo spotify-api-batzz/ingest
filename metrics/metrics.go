@@ -21,6 +21,16 @@ type BulkIndexerWrapper struct {
 	context     interface{}
 }
 
+type LogstashAuth struct {
+	Hostname string
+	Port     int
+}
+
+type ElasticAuth struct {
+	Username string
+	Password string
+}
+
 func (b *BulkIndexerWrapper) Add(eventBody interface{}) error {
 	body := make(map[string]interface{})
 	body["ctx"] = b.context
@@ -50,10 +60,10 @@ type MetricHandler struct {
 	bulkIndexer *BulkIndexerWrapper
 }
 
-func NewMetricHandler(logstashHost string, logstashPort int, context interface{}) (MetricHandler, error) {
+func NewMetricHandler(logstashAuth LogstashAuth, elasticAuth ElasticAuth, context interface{}) (MetricHandler, error) {
 	retryBackoff := backoff.NewExponentialBackOff()
 
-	logstashUrl := fmt.Sprintf("http://%s:%d", logstashHost, logstashPort)
+	logstashUrl := fmt.Sprintf("http://%s:%d", logstashAuth.Hostname, logstashAuth.Port)
 	esClientRetryHandler := func(i int) time.Duration {
 		if i == 1 {
 			retryBackoff.Reset()
@@ -69,8 +79,8 @@ func NewMetricHandler(logstashHost string, logstashPort int, context interface{}
 		EnableDebugLogger: true,
 		RetryBackoff:      esClientRetryHandler,
 		MaxRetries:        5,
-		Username:          utils.MustGetEnv("elastic_username"),
-		Password:          utils.MustGetEnv("elastic_password"),
+		Username:          elasticAuth.Username,
+		Password:          elasticAuth.Password,
 	})
 	if err != nil {
 		return MetricHandler{}, err

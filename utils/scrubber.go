@@ -37,10 +37,12 @@ func (q *QueryParamScrubber) Scrub(value string) string {
 
 	scrubbedValue := value
 	for _, key := range q.keysToScrub {
-		if query.Has(key) {
-			toBeScrubbed := query.Get(key)
-			scrubbedValue = strings.ReplaceAll(scrubbedValue, toBeScrubbed, convertToAsterisks(toBeScrubbed))
+		if !query.Has(key) {
+			continue
 		}
+		toBeScrubbed := query.Get(key)
+		scrubbed := convertToAsterisks(toBeScrubbed)
+		scrubbedValue = strings.ReplaceAll(scrubbedValue, toBeScrubbed, scrubbed)
 	}
 
 	return scrubbedValue

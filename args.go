@@ -6,10 +6,6 @@ import (
 	"spotify/ingest"
 )
 
-// interface Args {
-
-// }
-
 func parseArgs() ingest.SpotifyIngestOptions {
 	recentListen := flag.Bool("r", false, "Parse and ingest user data regarding a users recently listened tracks")
 	topSongs := flag.Bool("t", false, "Parse and ingest user data regarding a users top songs")

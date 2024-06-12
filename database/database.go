@@ -13,9 +13,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type DatabaseAuth struct {
+	User     string
+	IP       string
+	Password string
+	Port     string
+	Table    string
+}
+
 type Database struct {
-	DB *sqlx.DB
-	Tx *sqlx.Tx
+	DB   *sqlx.DB
+	Tx   *sqlx.Tx
+	Auth DatabaseAuth
 }
 
 func (database *Database) StartTX() {
@@ -43,14 +52,9 @@ func (database *Database) Commit() {
 }
 
 // Connect opens up a conection to the database
-func (database *Database) Connect() error {
-	dbUser := utils.MustGetEnv("DB_USER")
-	dbIP := utils.MustGetEnv("DB_IP")
-	dbPass := utils.MustGetEnv("DB_PASS")
-	dbPort := utils.MustGetEnv("DB_PORT")
-	dbTable := utils.MustGetEnv("DB_TABLE")
+func (db *Database) Connect() error {
 
-	url := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s", dbIP, dbPort, dbTable, dbUser, dbPass)
+	url := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s", db.Auth.IP, db.Auth.Port, db.Auth.Table, db.Auth.User, db.Auth.Password)
 
 	connConf, err := pgx.ParseConfig(url)
 	if err != nil {
@@ -59,15 +63,15 @@ func (database *Database) Connect() error {
 	connConf.PreferSimpleProtocol = true
 
 	nativeDB := stdlib.OpenDB(*connConf)
-	db := sqlx.NewDb(nativeDB, "pgx")
-	err = db.Ping()
+	sqlxDb := sqlx.NewDb(nativeDB, "pgx")
+	err = sqlxDb.Ping()
 	if err != nil {
 		logger.Log(err, logger.Error)
 		// do something here
 		return err
 	}
 
-	database.DB = db
+	db.DB = sqlxDb
 	return nil
 }
 
