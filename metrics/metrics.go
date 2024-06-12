@@ -106,8 +106,8 @@ const (
 	ENTITY     = "ENTITY"
 )
 
-func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody string) error {
-	return m.bulkIndexer.Add(newApiRequestIndexBody(method, url, reqBody))
+func (m *MetricHandler) AddApiRequestIndex(method string, url string, reqBody string, timeTakenMS int64, bodySize int) error {
+	return m.bulkIndexer.Add(newApiRequestIndexBody(method, url, reqBody, timeTakenMS, bodySize))
 }
 
 func (m *MetricHandler) AddNewFailure(failureType string, err error) error {
@@ -128,28 +128,30 @@ func (m *MetricHandler) AddIngestFinishedIndex(stats ingest.SpotifyIngestStats) 
 
 func newModel(tableName string, value interface{}) map[string]interface{} {
 	data := make(map[string]interface{})
+	data["type"] = ENTITY
 	data["tableName"] = tableName
 	data["data"] = value
-	data["type"] = ENTITY
 
 	return data
 }
 
 func newFailureIndexBody(failureType string, err error) map[string]interface{} {
 	data := make(map[string]interface{})
+	data["type"] = FAILURE
 	data["failureType"] = failureType
 	data["err"] = err.Error()
-	data["type"] = FAILURE
 
 	return data
 }
 
-func newApiRequestIndexBody(method string, url string, reqBody string) map[string]interface{} {
+func newApiRequestIndexBody(method string, url string, reqBody string, timeTakenMS int64, bodySize int) map[string]interface{} {
 	data := make(map[string]interface{})
+	data["type"] = APIREQUEST
 	data["url"] = url
 	data["method"] = method
 	data["reqBody"] = reqBody
-	data["type"] = APIREQUEST
+	data["timeTaken"] = timeTakenMS
+	data["bodySize"] = bodySize
 
 	return data
 }

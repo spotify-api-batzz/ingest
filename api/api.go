@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"spotify/utils"
 	"strings"
@@ -78,7 +79,7 @@ func (b *BadRespError) Error() string {
 }
 
 type MetricHandler interface {
-	AddApiRequestIndex(method string, url string, reqBody string) error
+	AddApiRequestIndex(method string, url string, reqBody string, timeTakenMs int64, bodySize int) error
 }
 
 func NewSpotifyAPI(baseURL string, Metrics MetricHandler, auth SpotifyAPIAuth, options APIOptions) spotifyAPI {
@@ -125,14 +126,13 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	}
 
-	sanitizedBody := utils.ScrubSensitiveData(bodyString, []string{"refresh_token"})
-	sanitizedUrl := utils.ScrubSensitiveData(url, []string{"refresh_token"})
-	err = api.Metrics.AddApiRequestIndex(method, sanitizedUrl, sanitizedBody)
+	reqStart := time.Now()
+	resp, err := api.Client.Do(req)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	resp, err := api.Client.Do(req)
+	reqEnd := time.Now()
 	if err != nil {
 		return []byte{}, err
 	}
@@ -143,6 +143,9 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 		return []byte{}, err
 	}
 
+	sanitizedBody := utils.ScrubSensitiveData(bodyString, []string{"refresh_token"})
+	sanitizedUrl := utils.ScrubSensitiveData(url, []string{"refresh_token"})
+	err = api.Metrics.AddApiRequestIndex(method, sanitizedUrl, sanitizedBody, reqStart.Sub(reqEnd).Milliseconds(), len(bytes))
 	if resp.StatusCode != 200 {
 		return []byte{}, newBadRespError(resp.StatusCode, string(bytes))
 	}

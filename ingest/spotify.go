@@ -359,13 +359,13 @@ func (spotify *SpotifyIngest) InsertTopSongs(songs map[string]api.TopTracksRespo
 	return nil
 }
 
-func (spotify *SpotifyIngest) InsertTopArtists(songs map[string]api.TopArtistsResponse, dbArtists []models.Artist) error {
+func (spotify *SpotifyIngest) InsertTopArtists(topArtists map[string]api.TopArtistsResponse, dbArtists []models.Artist) error {
 	topArtistDataValues := []interface{}{}
 	topArtistValues := []interface{}{}
 	newTopArtist := models.NewTopArtist(spotify.Options.UserID)
 	spotify.OnNewEntityEvent(&newTopArtist)
 
-	for term, resp := range songs {
+	for term, resp := range topArtists {
 		for i, artist := range resp.Items {
 			dbArtist, exists := getArtistBySpotifyID(dbArtists, artist.ID)
 			newTopArtistData := models.NewTopArtistData(artist.Name, "", i+1, term, newTopArtist.ID)
