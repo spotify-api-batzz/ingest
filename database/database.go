@@ -182,7 +182,6 @@ func (d *Database) Create(model models.Model, values []interface{}) error {
 
 	preppedValues := utils.PrepareBatchValuesPG(colLength, len(values)/colLength)
 	sql := fmt.Sprintf(`INSERT INTO %s (%s) VALUES %s `, tableName, columnNames, preppedValues)
-	fmt.Println(sql)
 	_, err := d.MustGetTx().Exec(sql, values...)
 	if err != nil {
 		return err
