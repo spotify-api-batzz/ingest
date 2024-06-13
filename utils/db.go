@@ -5,12 +5,23 @@ import (
 	"strings"
 )
 
+func WrapWithChar(arr []string, char string) []string {
+	var res []string
+	for _, val := range arr {
+		res = append(res, fmt.Sprintf(`%[2]s%[1]s%[2]s`, val, char))
+	}
+
+	return res
+}
+
 func ColumnNamesExclusive(model interface{}, exclude ...string) string {
-	return strings.Join(RemoveExcludedFromSlice(ReflectColumns(model), exclude), ",")
+	colString := WrapWithChar(ReflectColumns(model), `"`)
+	return strings.Join(RemoveExcludedFromSlice(colString, exclude), ",")
 }
 
 func ColumnNamesInclusive(model interface{}, include ...string) string {
-	return strings.Join(KeepIncludedInSlice(ReflectColumns(model), include), ",")
+	colString := WrapWithChar(ReflectColumns(model), `"`)
+	return strings.Join(KeepIncludedInSlice(colString, include), ",")
 }
 
 func PrepareBatchValuesPG(paramLength int, valueLength int) string {

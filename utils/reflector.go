@@ -62,6 +62,7 @@ func (r *DbReflector) ReflectColumns() []string {
 		value := structType.Tag.Get("db")
 		fields = append(fields, value)
 	}
+
 	return fields
 }
 
