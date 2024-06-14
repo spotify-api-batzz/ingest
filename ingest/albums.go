@@ -50,7 +50,7 @@ Outer:
 	}
 
 	for _, album := range apiAlbums {
-		album := models.NewAlbum(album.Name, album.ID, album.Artists[0].ID, true)
+		album := models.NewAlbum(album.Name, album.Artists[0].ID, album.ID, true)
 		dbAlbums = append(dbAlbums, album)
 		spotify.OnNewAlbum(&album, true)
 	}
@@ -70,10 +70,13 @@ func (spotify *SpotifyIngest) AttachAlbumUUIDs(albums []models.Album, artists []
 			if albums[i].ArtistID == "0LyfQWJT6nXafLPZqxe9Of" {
 				albums[i].ArtistID = spotify.Options.VariousArtistsUUID
 			}
-			if albums[i].ArtistID == artist.SpotifyID {
-				albums[i].ArtistID = artist.ID
-				break
+
+			dbArtist, exists := getArtistBySpotifyID(artists, artist.SpotifyID)
+			if !exists {
+				logger.Log(fmt.Sprintf("Failed to attach artist ID for artist %s", artist.Name), logger.Warning)
 			}
+			albums[i].ArtistID = dbArtist.ID
+			break
 		}
 		albumValues = append(albumValues, utils.ReflectValues(albums[i])...)
 	}

@@ -94,12 +94,23 @@ func (spotify *SpotifyIngest) AttachTrackUUIDs(songs []models.Song, artists []mo
 			}
 		}
 
+		fmt.Println(songs[i].AlbumID, len(songs[i].AlbumID))
+
+		if len(songs[i].AlbumID) != 36 {
+			fmt.Println("eh")
+			logger.Log(fmt.Sprintf("Album with spotify ID %s was not fetched from spotify", songs[i].AlbumID), logger.Warning)
+		}
+
 		songValues = append(songValues, utils.ReflectValues(songs[i])...)
 	}
 
 	if len(songValues) == 0 {
 		logger.Log("No new song data to ingest", logger.Debug)
 		return songs, nil
+	}
+
+	for _, album := range albums {
+		fmt.Println(album.SpotifyID)
 	}
 
 	songRecords := len(songValues) / len(utils.ReflectColumns(&models.Song{}))
