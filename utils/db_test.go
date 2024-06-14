@@ -24,13 +24,13 @@ func (mi MockIdentifiable) Identifier() string {
 func TestColumnNamesExclusive(t *testing.T) {
 	model := MockModel{}
 	columns := ColumnNamesExclusive(model, "exclude1", "exclude2")
-	assert.Equal(t, "column1,column2,column3", columns, "Column names are not as expected")
+	assert.Equal(t, `"column1","column2","column3"`, columns, "Column names are not as expected")
 }
 
 func TestColumnNamesInclusive(t *testing.T) {
 	model := MockModel{}
 	columns := ColumnNamesInclusive(model, "column1", "column3")
-	assert.Equal(t, "column1,column3", columns, "Column names are not as expected")
+	assert.Equal(t, `"column1","column3"`, columns, "Column names are not as expected")
 }
 
 func TestPrepareBatchValuesPG(t *testing.T) {
