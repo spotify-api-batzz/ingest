@@ -50,13 +50,13 @@ func TestIntegration(t *testing.T) {
 	modelSlice := []models.Model{&models.Song{}, &models.Artist{}, &models.RecentListen{}, &models.Thumbnail{}, &models.User{}, &models.Album{}}
 	expectedInserts := loadExpectedInserts("recent-listens", modelSlice)
 
-	// dbBytes, _ := json.Marshal(db.SavedValues)
-	// expectedBytes, _ := json.Marshal(expectedInserts)
+	dbBytes, _ := json.Marshal(db.SavedValues)
+	expectedBytes, _ := json.Marshal(expectedInserts)
 
-	// dbString := string(dbBytes)
-	// expectedString := string(expectedBytes)
+	dbString := string(dbBytes)
+	expectedString := string(expectedBytes)
 
-	if diff := deep.Equal(db.SavedValues, expectedInserts); diff != nil {
+	if diff := deep.Equal(dbString, expectedString); diff != nil {
 		// TODO: sane diff printing pls
 		t.Error(diff)
 		// t.Errorf(differ.LineDiff(dbString, expectedString))
