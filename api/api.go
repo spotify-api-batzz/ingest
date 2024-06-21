@@ -133,9 +133,6 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 	}
 
 	reqEnd := time.Now()
-	if err != nil {
-		return []byte{}, err
-	}
 
 	defer resp.Body.Close()
 	bytes, err := io.ReadAll(resp.Body)
