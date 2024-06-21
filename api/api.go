@@ -146,6 +146,10 @@ func (api *spotifyAPI) Request(method string, url string, body io.Reader) ([]byt
 	sanitizedBody := utils.ScrubSensitiveData(bodyString, []string{"refresh_token"})
 	sanitizedUrl := utils.ScrubSensitiveData(url, []string{"refresh_token"})
 	err = api.Metrics.AddApiRequestIndex(method, sanitizedUrl, sanitizedBody, reqEnd.Sub(reqStart).Milliseconds(), len(bytes))
+	if err != nil {
+		return []byte{}, err
+	}
+
 	if resp.StatusCode != 200 {
 		return []byte{}, newBadRespError(resp.StatusCode, string(bytes))
 	}
